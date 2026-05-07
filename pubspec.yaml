@@ -1,0 +1,68 @@
+name: safe_driver_driver_app
+description: "SafeDriver - Driver Companion App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
+  material_design_icons_flutter: ^7.0.7296
+
+  # State Management
+  provider: ^6.1.2
+  flutter_riverpod: ^2.4.9
+  shared_preferences: ^2.2.2
+
+  # Firebase Services
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
+  cloud_functions: ^4.7.6
+  firebase_storage: ^11.7.7
+  firebase_messaging: ^14.9.4
+
+  # Location & Maps
+  geolocator: ^10.1.0
+  google_maps_flutter: ^2.5.3
+  geocoding: ^2.1.1
+  location: ^5.0.3
+
+  # Media & Camera
+  image_picker: ^1.0.4
+
+  # Network & HTTP
+  http: ^1.1.2
+  connectivity_plus: ^5.0.2
+
+  # Permissions
+  permission_handler: ^11.1.0
+
+  # UI Components
+  shimmer: ^3.0.0
+  lottie: ^2.7.0
+
+  # Utilities
+  intl: ^0.20.0
+  url_launcher: ^6.2.1
+  path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true # For localization
+
+  assets:
+    - assets/images/
