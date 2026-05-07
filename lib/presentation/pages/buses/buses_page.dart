@@ -112,13 +112,13 @@ class BusesPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        bus.busNumberPlate,
+                        bus.busNumber,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
                       Text(
-                        bus.model,
+                        bus.specifications.model,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.grey,
                             ),
@@ -128,11 +128,11 @@ class BusesPage extends ConsumerWidget {
                 ),
                 Chip(
                   label: Text(
-                    bus.status.toUpperCase(),
+                    bus.statusDisplay,
                     style: const TextStyle(
                         fontSize: 10, fontWeight: FontWeight.bold),
                   ),
-                  backgroundColor: _getStatusColor(bus.status),
+                  backgroundColor: _getStatusColor(bus.statusDisplay),
                 ),
               ],
             ),
@@ -143,9 +143,11 @@ class BusesPage extends ConsumerWidget {
             _buildInfoRow(
                 l10n.capacity, '${bus.capacity} passengers', Icons.people),
             const SizedBox(height: 8),
-            _buildInfoRow('Mileage', '${bus.mileage} km', Icons.speed),
+            _buildInfoRow('Mileage', '${bus.maintenanceInfo.currentMileage} km',
+                Icons.speed),
             const SizedBox(height: 8),
-            _buildInfoRow('Year', bus.year.toString(), Icons.calendar_today),
+            _buildInfoRow('Year', bus.specifications.year.toString(),
+                Icons.calendar_today),
           ],
         ),
       ),
