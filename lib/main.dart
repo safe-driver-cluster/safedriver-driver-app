@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
+
 import 'firebase_options.dart';
-import 'providers/theme_provider.dart';
-import 'providers/language_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
+import 'providers/language_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +23,7 @@ class DriverApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
-    final locale = ref.watch(languageProvider);
+    final locale = ref.watch(currentLocaleProvider);
 
     return MaterialApp(
       title: 'SafeDriver Driver',
