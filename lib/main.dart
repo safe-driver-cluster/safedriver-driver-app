@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'providers/language_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
