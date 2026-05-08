@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
+
 import '../dashboard/dashboard_page.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
@@ -17,10 +18,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   Future<void> _verifyOtp() async {
     setState(() => _isLoading = true);
-    
+
     // Simulate OTP verification
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -32,8 +33,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.verifyOtp)),
       body: Padding(
@@ -66,9 +67,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
-              child: _isLoading 
-                ? const CircularProgressIndicator(color: Colors.white)
-                : Text(l10n.verifyOtp),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(l10n.verifyOtp),
             ),
           ],
         ),
