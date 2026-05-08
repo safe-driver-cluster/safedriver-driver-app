@@ -105,12 +105,8 @@ class PhoneAuthService {
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // Delete passenger profile first
-      try {
-        await _passengerService.deletePassengerProfile(user.uid);
-      } catch (e) {
-        print('Error deleting passenger profile: $e');
-      }
+      // Delete driver profile first (if needed)
+      // TODO: Implement driver profile deletion
 
       // Delete Firebase Auth user
       await user.delete();
