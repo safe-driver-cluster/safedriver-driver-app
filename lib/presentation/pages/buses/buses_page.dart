@@ -1,26 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
 
 import '../../../data/models/bus_model.dart';
 import '../../../providers/auth_provider.dart';
 
-final assignedBusesProvider =
-    FutureProvider.autoDispose<List<BusModel>>((ref) async {
+// Provider to fetch buses assigned to the current driver
+final assignedBusesProvider = StreamProvider.autoDispose<List<BusModel>>((ref) {
   final driverId = ref.watch(currentDriverIdProvider);
-  if (driverId == null) return [];
+  if (driverId == null) return Stream.value([]);
 
-  final snapshot = await FirebaseFirestore.instance
+  return FirebaseFirestore.instance
       .collection('vehicles')
       .where('driverId', isEqualTo: driverId)
-      .get();
-
-  return snapshot.docs.map((doc) {
-    final data = doc.data();
-    data['id'] = doc.id;
-    return BusModel.fromJson(data);
-  }).toList();
+      .snapshots()
+      .map((snapshot) {
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return BusModel.fromJson(data);
+    }).toList();
+  });
 });
 
 class BusesPage extends ConsumerWidget {
@@ -35,50 +36,50 @@ class BusesPage extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.myBuses),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(assignedBusesProvider);
-        },
-        child: busesAsync.when(
-          data: (buses) {
-            if (buses.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.directions_bus_outlined,
-                        size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.noBusesAssigned,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey,
-                          ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: buses.length,
-              itemBuilder: (context, index) {
-                final bus = buses[index];
-                return _buildBusCard(context, l10n, bus);
-              },
+      body: busesAsync.when(
+        data: (buses) {
+          if (buses.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.directions_bus_outlined,
+                      size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.noBusesAssigned,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                  ),
+                ],
+              ),
             );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Error: $error'),
-              ],
-            ),
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: buses.length,
+            itemBuilder: (context, index) {
+              final bus = buses[index];
+              return _buildBusCard(context, l10n, bus);
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(assignedBusesProvider),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
       ),
@@ -118,7 +119,7 @@ class BusesPage extends ConsumerWidget {
                             ),
                       ),
                       Text(
-                        bus.specifications.model,
+                        bus.registration,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.grey,
                             ),
@@ -132,22 +133,34 @@ class BusesPage extends ConsumerWidget {
                     style: const TextStyle(
                         fontSize: 10, fontWeight: FontWeight.bold),
                   ),
-                  backgroundColor: _getStatusColor(bus.statusDisplay),
+                  backgroundColor: _getStatusColor(bus.status),
                 ),
               ],
             ),
             const Divider(height: 24),
-            _buildInfoRow(
-                l10n.route, bus.routeId ?? 'Not assigned', Icons.route),
+            _buildInfoRow(l10n.route, bus.routeDisplay, Icons.route),
+            const SizedBox(height: 8),
+            _buildInfoRow(l10n.capacity, '${bus.passengerCapacity} passengers',
+                Icons.people),
             const SizedBox(height: 8),
             _buildInfoRow(
-                l10n.capacity, '${bus.capacity} passengers', Icons.people),
+                'Mileage', '${bus.maintenanceInfo.mileage} km', Icons.speed),
             const SizedBox(height: 8),
-            _buildInfoRow('Mileage', '${bus.maintenanceInfo.currentMileage} km',
-                Icons.speed),
+            _buildInfoRow(
+                'Model',
+                '${bus.specifications.manufacturer} ${bus.specifications.model}',
+                Icons.info),
             const SizedBox(height: 8),
-            _buildInfoRow('Year', bus.specifications.year.toString(),
-                Icons.calendar_today),
+            _buildInfoRow('Safety Score',
+                '${bus.safetyScore.toStringAsFixed(1)}/100', Icons.security),
+            if (bus.currentLocation != null) ...[
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                  'Location',
+                  bus.currentLocation!.address ??
+                      'GPS: ${bus.currentLocation!.latitude.toStringAsFixed(4)}, ${bus.currentLocation!.longitude.toStringAsFixed(4)}',
+                  Icons.location_on),
+            ],
           ],
         ),
       ),
@@ -173,15 +186,20 @@ class BusesPage extends ConsumerWidget {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
+  Color _getStatusColor(BusStatus status) {
+    switch (status) {
+      case BusStatus.online:
+      case BusStatus.active:
+      case BusStatus.inTransit:
+      case BusStatus.enRoute:
         return Colors.green.shade100;
-      case 'maintenance':
+      case BusStatus.atStop:
+        return Colors.blue.shade100;
+      case BusStatus.maintenance:
         return Colors.orange.shade100;
-      case 'inactive':
+      case BusStatus.emergency:
         return Colors.red.shade100;
-      default:
+      case BusStatus.offline:
         return Colors.grey.shade100;
     }
   }
