@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
 
 import '../../../data/models/alert_model.dart';
 import '../../../data/services/alert_service.dart';
@@ -30,7 +30,7 @@ class AlertsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final alertsAsync = ref.watch(alertsProvider);
     final unreadCountAsync = ref.watch(unreadCountProvider);
 
