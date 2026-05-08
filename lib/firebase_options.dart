@@ -4,8 +4,6 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-import 'config/firebase_config.dart';
-
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
 /// Example:
@@ -42,53 +40,56 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static FirebaseOptions get web => FirebaseOptions(
-        apiKey: FirebaseConfig.webApiKey,
-        appId: FirebaseConfig.webAppId,
-        messagingSenderId: FirebaseConfig.messagingSenderId,
-        projectId: FirebaseConfig.projectId,
-        authDomain: FirebaseConfig.authDomain,
-        storageBucket: FirebaseConfig.storageBucket,
-        measurementId: FirebaseConfig.enableAnalytics
-            ? FirebaseConfig.measurementId
-            : null,
-      );
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBhjbnNGQcGllHwGal2NIUPTAstnUlSwaw',
+    appId: '1:719842751658:web:6a6741fea6402a70514cd3',
+    messagingSenderId: '719842751658',
+    projectId: 'safe-driver-system',
+    authDomain: 'safe-driver-system.firebaseapp.com',
+    databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
+    storageBucket: 'safe-driver-system.firebasestorage.app',
+    measurementId: 'G-EVL44XM90H',
+  );
 
-  static FirebaseOptions get android => FirebaseOptions(
-        apiKey: FirebaseConfig.androidApiKey,
-        appId: FirebaseConfig.androidAppId,
-        messagingSenderId: FirebaseConfig.messagingSenderId,
-        projectId: FirebaseConfig.projectId,
-        storageBucket: FirebaseConfig.storageBucket,
-      );
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyCcibaYhXUItkAhrUQuugWyDirmQ3-0VfY',
+    appId: '1:719842751658:android:988282b039bd42f4514cd3',
+    messagingSenderId: '719842751658',
+    projectId: 'safe-driver-system',
+    databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
+    storageBucket: 'safe-driver-system.firebasestorage.app',
+  );
 
-  static FirebaseOptions get ios => FirebaseOptions(
-        apiKey: FirebaseConfig.iosApiKey,
-        appId: FirebaseConfig.iosAppId,
-        messagingSenderId: FirebaseConfig.messagingSenderId,
-        projectId: FirebaseConfig.projectId,
-        storageBucket: FirebaseConfig.storageBucket,
-        iosBundleId: FirebaseConfig.iosBundleId,
-      );
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBoGAHEp-lDg0WuA6H29FzklC0IX0zzxGs',
+    appId: '1:719842751658:ios:e1f5fca0fce6e7dd514cd3',
+    messagingSenderId: '719842751658',
+    projectId: 'safe-driver-system',
+    databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
+    storageBucket: 'safe-driver-system.firebasestorage.app',
+    iosClientId: '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
+    iosBundleId: 'com.example.safeDriverDriverApp',
+  );
 
-  static FirebaseOptions get macos => FirebaseOptions(
-        apiKey: FirebaseConfig.iosApiKey,
-        appId: FirebaseConfig.iosAppId,
-        messagingSenderId: FirebaseConfig.messagingSenderId,
-        projectId: FirebaseConfig.projectId,
-        storageBucket: FirebaseConfig.storageBucket,
-        iosBundleId: FirebaseConfig.iosBundleId,
-      );
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBoGAHEp-lDg0WuA6H29FzklC0IX0zzxGs',
+    appId: '1:719842751658:ios:e1f5fca0fce6e7dd514cd3',
+    messagingSenderId: '719842751658',
+    projectId: 'safe-driver-system',
+    databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
+    storageBucket: 'safe-driver-system.firebasestorage.app',
+    iosClientId: '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
+    iosBundleId: 'com.example.safeDriverDriverApp',
+  );
 
-  static FirebaseOptions get windows => FirebaseOptions(
-        apiKey: FirebaseConfig.webApiKey,
-        appId: FirebaseConfig.webAppId,
-        messagingSenderId: FirebaseConfig.messagingSenderId,
-        projectId: FirebaseConfig.projectId,
-        authDomain: FirebaseConfig.authDomain,
-        storageBucket: FirebaseConfig.storageBucket,
-        measurementId: FirebaseConfig.enableAnalytics
-            ? FirebaseConfig.measurementId
-            : null,
-      );
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyB88lAZy6Dd5KCEhR_g2wZ0MwyvBUtTOgs',
+    appId: '1:719842751658:web:ff65eb8362f8dc64514cd3',
+    messagingSenderId: '719842751658',
+    projectId: 'safe-driver-system',
+    authDomain: 'safe-driver-system.firebaseapp.com',
+    databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
+    storageBucket: 'safe-driver-system.firebasestorage.app',
+    measurementId: 'G-PQZ4XTLYPV',
+  );
 }

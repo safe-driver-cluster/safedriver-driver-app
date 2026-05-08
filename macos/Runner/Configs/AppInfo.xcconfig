@@ -8,7 +8,7 @@
 PRODUCT_NAME = safe_driver_driver_app
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.safedriver.driver.safeDriverDriverApp
+PRODUCT_BUNDLE_IDENTIFIER = com.example.safeDriverDriverApp
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.safedriver.driver. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
