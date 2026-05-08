@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safe_driver_driver_app/screens/auth/login_screen.dart';
+import 'package:safe_driver_driver_app/screens/auth/language_selector_screen.dart';
+import 'package:safe_driver_driver_app/screens/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -36,9 +39,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
 
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
-    );
+    _logoOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
 
     // Text animation
     _textController = AnimationController(
@@ -55,19 +59,49 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _navigateToLogin() {
-    Timer(const Duration(seconds: 4), () {
+    Timer(const Duration(seconds: 4), () async {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
+        try {
+          final prefs = await SharedPreferences.getInstance();
+
+          final languageSelected = prefs.getBool('language_selected') ?? false;
+          final onboardingCompleted =
+              prefs.getBool('onboarding_completed') ?? false;
+
+          Widget nextScreen = const LanguageSelectorScreen();
+
+          if (languageSelected && !onboardingCompleted) {
+            nextScreen = const OnboardingScreen();
+          } else if (languageSelected && onboardingCompleted) {
+            nextScreen = const LoginScreen();
+          }
+
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  nextScreen,
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+              transitionDuration: const Duration(milliseconds: 800),
+            ),
+          );
+        } catch (e) {
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const LanguageSelectorScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                transitionDuration: const Duration(milliseconds: 800),
+              ),
+            );
+          }
+        }
       }
     });
   }
@@ -87,11 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2563EB),
-              Color(0xFF1E40AF),
-              Color(0xFF1E3A8A),
-            ],
+            colors: [Color(0xFF2563EB), Color(0xFF1E40AF), Color(0xFF1E3A8A)],
             stops: [0.0, 0.5, 1.0],
           ),
         ),

@@ -67,7 +67,8 @@ class DefaultFirebaseOptions {
     projectId: 'safe-driver-system',
     databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
     storageBucket: 'safe-driver-system.firebasestorage.app',
-    iosClientId: '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
+    iosClientId:
+        '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
     iosBundleId: 'com.example.safeDriverDriverApp',
   );
 
@@ -78,7 +79,8 @@ class DefaultFirebaseOptions {
     projectId: 'safe-driver-system',
     databaseURL: 'https://safe-driver-system-default-rtdb.firebaseio.com',
     storageBucket: 'safe-driver-system.firebasestorage.app',
-    iosClientId: '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
+    iosClientId:
+        '719842751658-jcu31lfo5s42nrog8ireupk6voosfomc.apps.googleusercontent.com',
     iosBundleId: 'com.example.safeDriverDriverApp',
   );
 

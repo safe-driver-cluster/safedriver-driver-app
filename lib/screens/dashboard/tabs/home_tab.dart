@@ -10,7 +10,9 @@ class HomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final driverData = userId != null ? ref.watch(driverDataProvider(userId)) : AsyncValue.loading();
+    final driverData = userId != null
+        ? ref.watch(driverDataProvider(userId))
+        : AsyncValue.loading();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -60,10 +62,7 @@ class HomeTab extends ConsumerWidget {
                     },
                     loading: () => const Text(
                       'Loading...',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                     error: (err, stack) => const SizedBox(),
                   ),
@@ -73,10 +72,7 @@ class HomeTab extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           // Quick Stats
-          Text(
-            'Quick Stats',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Quick Stats', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 2,
@@ -117,10 +113,7 @@ class HomeTab extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           // Recent Activity
-          Text(
-            'Quick Actions',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Quick Actions', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           ListTile(
             leading: const Icon(Icons.login),
@@ -154,29 +147,20 @@ class HomeTab extends ConsumerWidget {
   }) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
-            ],
+            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: color,
-            ),
+            Icon(icon, size: 32, color: color),
             const SizedBox(height: 8),
             Text(
               title,

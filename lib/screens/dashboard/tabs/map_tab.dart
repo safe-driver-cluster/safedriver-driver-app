@@ -12,16 +12,9 @@ class MapTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.map,
-            size: 64,
-            color: Theme.of(context).primaryColor,
-          ),
+          Icon(Icons.map, size: 64, color: Theme.of(context).primaryColor),
           const SizedBox(height: 16),
-          Text(
-            locale!.map,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text(locale!.map, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),

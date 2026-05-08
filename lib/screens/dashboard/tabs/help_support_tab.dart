@@ -64,10 +64,7 @@ class HelpSupportTab extends StatelessWidget {
                 title: locale.termsConditions,
                 icon: Icons.description,
               ),
-              _SupportItem(
-                title: 'User Guide',
-                icon: Icons.menu_book,
-              ),
+              _SupportItem(title: 'User Guide', icon: Icons.menu_book),
             ],
           ),
         ],
@@ -88,10 +85,7 @@ class HelpSupportTab extends StatelessWidget {
           children: [
             Icon(icon, color: Theme.of(context).primaryColor),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
           ],
         ),
         const SizedBox(height: 12),
@@ -146,7 +140,10 @@ class HelpSupportTab extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.location_on, color: Theme.of(context).primaryColor),
+                    Icon(
+                      Icons.location_on,
+                      color: Theme.of(context).primaryColor,
+                    ),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text('123 Main Street, Colombo, Sri Lanka'),

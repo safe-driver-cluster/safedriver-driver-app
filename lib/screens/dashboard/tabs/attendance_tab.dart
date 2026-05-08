@@ -10,7 +10,9 @@ class AttendanceTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final attendance = userId != null ? ref.watch(attendanceStreamProvider(userId)) : const AsyncValue.loading();
+    final attendance = userId != null
+        ? ref.watch(attendanceStreamProvider(userId))
+        : const AsyncValue.loading();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -52,18 +54,21 @@ class AttendanceTab extends ConsumerWidget {
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: Icon(
-                        att.status == 'present' ? Icons.check_circle : Icons.cancel_outlined,
-                        color: att.status == 'present' ? Colors.green : Colors.red,
+                        att.status == 'present'
+                            ? Icons.check_circle
+                            : Icons.cancel_outlined,
+                        color: att.status == 'present'
+                            ? Colors.green
+                            : Colors.red,
                       ),
-                      title: Text(
-                        att.date.toString().split(' ')[0],
-                      ),
-                      subtitle: Text(
-                        '${locale.status}: ${att.status}',
-                      ),
+                      title: Text(att.date.toString().split(' ')[0]),
+                      subtitle: Text('${locale.status}: ${att.status}'),
                       trailing: Text(
                         att.checkInTime != null
-                            ? att.checkInTime.toString().split(' ')[1].substring(0, 5)
+                            ? att.checkInTime
+                                  .toString()
+                                  .split(' ')[1]
+                                  .substring(0, 5)
                             : '-',
                       ),
                     ),
@@ -71,12 +76,8 @@ class AttendanceTab extends ConsumerWidget {
                 },
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (err, stack) => Center(
-              child: Text('Error: $err'),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
           ),
         ],
       ),

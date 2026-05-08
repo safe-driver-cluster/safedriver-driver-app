@@ -6,10 +6,7 @@ import 'package:safe_driver_driver_app/screens/dashboard/dashboard_screen.dart';
 class OTPScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
 
-  const OTPScreen({
-    Key? key,
-    required this.phoneNumber,
-  }) : super(key: key);
+  const OTPScreen({Key? key, required this.phoneNumber}) : super(key: key);
 
   @override
   ConsumerState<OTPScreen> createState() => _OTPScreenState();
@@ -40,9 +37,9 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
 
   void _handleVerifyOTP() {
     if (_otpController.text.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP must be 6 digits')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('OTP must be 6 digits')));
       return;
     }
 
@@ -55,9 +52,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
         setState(() => _isLoading = false);
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const DashboardScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       }
     });
@@ -87,11 +82,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2563EB),
-              Color(0xFF1E40AF),
-              Color(0xFF1E3A8A),
-            ],
+            colors: [Color(0xFF2563EB), Color(0xFF1E40AF), Color(0xFF1E3A8A)],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
@@ -190,15 +181,23 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE5E7EB),
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE5E7EB),
+                                  width: 1,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF2563EB),
+                                  width: 2,
+                                ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -230,7 +229,9 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                   height: 24,
                                   width: 24,
                                   child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                     strokeWidth: 2,
                                   ),
                                 )
@@ -252,7 +253,10 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                   onTap: _handleResendOTP,
                                   child: RichText(
                                     text: const TextSpan(
-                                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF6B7280),
+                                      ),
                                       children: [
                                         TextSpan(text: "Didn't receive code? "),
                                         TextSpan(
@@ -269,7 +273,10 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                               else
                                 RichText(
                                   text: TextSpan(
-                                    style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF6B7280),
+                                    ),
                                     children: [
                                       const TextSpan(text: 'Resend code in '),
                                       TextSpan(

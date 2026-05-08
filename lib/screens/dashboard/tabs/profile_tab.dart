@@ -10,14 +10,14 @@ class ProfileTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final driverData = userId != null ? ref.watch(driverDataProvider(userId)) : AsyncValue.loading();
+    final driverData = userId != null
+        ? ref.watch(driverDataProvider(userId))
+        : AsyncValue.loading();
 
     return driverData.when(
       data: (driver) {
         if (driver == null) {
-          return Center(
-            child: Text(locale!.noData),
-          );
+          return Center(child: Text(locale!.noData));
         }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -30,7 +30,9 @@ class ProfileTab extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).primaryColor.withOpacity(0.2),
                       child: Icon(
                         Icons.person,
                         size: 50,
@@ -50,10 +52,7 @@ class ProfileTab extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               // Profile Information
-              Text(
-                locale.name,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(locale.name, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Card(
                 child: Padding(
@@ -62,10 +61,7 @@ class ProfileTab extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                locale.phone,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(locale.phone, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Card(
                 child: Padding(
@@ -74,10 +70,7 @@ class ProfileTab extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                locale.email,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(locale.email, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Card(
                 child: Padding(
@@ -110,10 +103,7 @@ class ProfileTab extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                locale.status,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(locale.status, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Card(
                 child: Padding(
@@ -133,10 +123,7 @@ class ProfileTab extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.info,
-                      color: Colors.blue.shade700,
-                    ),
+                    Icon(Icons.info, color: Colors.blue.shade700),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -154,12 +141,8 @@ class ProfileTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      error: (err, stack) => Center(
-        child: Text('Error: $err'),
-      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 }

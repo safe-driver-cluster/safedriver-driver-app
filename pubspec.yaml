@@ -1,6 +1,6 @@
 name: safe_driver_driver_app
 description: "SafeDriver - Driver Application"
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 

@@ -18,9 +18,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final language = ref.watch(languageProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(locale!.settings),
-      ),
+      appBar: AppBar(title: Text(locale!.settings)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,29 +56,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    _buildLanguageTile(
-                      context,
-                      'English',
-                      'en',
-                      language,
-                      ref,
-                    ),
+                    _buildLanguageTile(context, 'English', 'en', language, ref),
                     const Divider(),
-                    _buildLanguageTile(
-                      context,
-                      'සිංහල',
-                      'si',
-                      language,
-                      ref,
-                    ),
+                    _buildLanguageTile(context, 'සිංහල', 'si', language, ref),
                     const Divider(),
-                    _buildLanguageTile(
-                      context,
-                      'தமிழ்',
-                      'ta',
-                      language,
-                      ref,
-                    ),
+                    _buildLanguageTile(context, 'தமிழ்', 'ta', language, ref),
                   ],
                 ),
               ),
