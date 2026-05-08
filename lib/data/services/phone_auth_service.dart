@@ -137,7 +137,6 @@ class PhoneAuthService {
 class PhoneAuthResult {
   final bool success;
   final User? user;
-  final PassengerModel? passengerProfile;
   final String? verificationId;
   final String? phoneNumber;
   final DateTime? expiresAt;
@@ -147,7 +146,6 @@ class PhoneAuthResult {
   const PhoneAuthResult({
     required this.success,
     this.user,
-    this.passengerProfile,
     this.verificationId,
     this.phoneNumber,
     this.expiresAt,
