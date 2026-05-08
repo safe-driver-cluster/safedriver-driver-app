@@ -43,6 +43,16 @@ class LocationModel {
     );
   }
 
+  /// Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': latitude,
+      'longitude': longitude,
+      if (address != null) 'address': address,
+      if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
+    };
+  }
+
   /// Convert to Firestore map
   Map<String, dynamic> toFirestore() {
     return {
