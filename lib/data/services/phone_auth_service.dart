@@ -1,7 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/passenger_model.dart';
-import 'passenger_service.dart';
 import 'sms_gateway_service.dart';
 
 class PhoneAuthService {
@@ -10,7 +8,6 @@ class PhoneAuthService {
   PhoneAuthService._internal();
 
   final SmsGatewayService _smsGateway = SmsGatewayService();
-  final PassengerService _passengerService = PassengerService.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Send OTP to phone number
@@ -108,12 +105,8 @@ class PhoneAuthService {
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // Delete passenger profile first
-      try {
-        await _passengerService.deletePassengerProfile(user.uid);
-      } catch (e) {
-        print('Error deleting passenger profile: $e');
-      }
+      // Delete driver profile first (if needed)
+      // TODO: Implement driver profile deletion
 
       // Delete Firebase Auth user
       await user.delete();
@@ -144,7 +137,6 @@ class PhoneAuthService {
 class PhoneAuthResult {
   final bool success;
   final User? user;
-  final PassengerModel? passengerProfile;
   final String? verificationId;
   final String? phoneNumber;
   final DateTime? expiresAt;
@@ -154,7 +146,6 @@ class PhoneAuthResult {
   const PhoneAuthResult({
     required this.success,
     this.user,
-    this.passengerProfile,
     this.verificationId,
     this.phoneNumber,
     this.expiresAt,

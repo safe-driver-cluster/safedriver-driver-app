@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:safe_driver_driver_app/l10n/app_localizations.dart';
+
 import 'otp_screen.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -32,7 +32,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (query.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.driverNotFound)),
+            SnackBar(
+                content: Text(AppLocalizations.of(context).driverNotFound)),
           );
         }
         setState(() => _isLoading = false);
@@ -61,8 +62,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -74,9 +75,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               Text(
                 l10n.appTitle,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -98,9 +99,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                 ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(l10n.sendOtp),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(l10n.sendOtp),
               ),
             ],
           ),
