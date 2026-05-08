@@ -10,7 +10,9 @@ class RatingsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final ratings = userId != null ? ref.watch(ratingsStreamProvider(userId)) : const AsyncValue.loading();
+    final ratings = userId != null
+        ? ref.watch(ratingsStreamProvider(userId))
+        : const AsyncValue.loading();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -27,7 +29,8 @@ class RatingsTab extends ConsumerWidget {
               double avgRating = 0;
               if (ratingsList.isNotEmpty) {
                 avgRating =
-                    ratingsList.fold(0, (sum, r) => sum + r.rating) / ratingsList.length;
+                    ratingsList.fold(0, (sum, r) => sum + r.rating) /
+                    ratingsList.length;
               }
               return Column(
                 children: [
@@ -68,7 +71,9 @@ class RatingsTab extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${locale.totalRatings}: ${ratingsList.length}',
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -107,11 +112,14 @@ class RatingsTab extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       rating.passengerName,
-                                      style: Theme.of(context).textTheme.titleSmall,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
                                     ),
                                     Row(
                                       children: List.generate(
@@ -141,12 +149,8 @@ class RatingsTab extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (err, stack) => Center(
-              child: Text('Error: $err'),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
           ),
         ],
       ),

@@ -5,7 +5,9 @@ import 'package:safe_driver_driver_app/services/firestore_service.dart';
 import 'package:safe_driver_driver_app/models/models.dart';
 
 // Shared Preferences Provider
-final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
+final sharedPreferencesProvider = FutureProvider<SharedPreferences>((
+  ref,
+) async {
   return await SharedPreferences.getInstance();
 });
 
@@ -59,35 +61,49 @@ final currentUserIdProvider = Provider<String?>((ref) {
 });
 
 // Driver Data Providers
-final driverDataProvider = FutureProvider.family<DriverModel?, String>((ref, driverId) async {
+final driverDataProvider = FutureProvider.family<DriverModel?, String>((
+  ref,
+  driverId,
+) async {
   final firestoreService = ref.watch(firestoreServiceProvider);
   return await firestoreService.getDriverById(driverId);
 });
 
-final attendanceStreamProvider = StreamProvider.family<List<AttendanceModel>, String>((ref, driverId) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getAttendanceStream(driverId);
-});
+final attendanceStreamProvider =
+    StreamProvider.family<List<AttendanceModel>, String>((ref, driverId) {
+      final firestoreService = ref.watch(firestoreServiceProvider);
+      return firestoreService.getAttendanceStream(driverId);
+    });
 
-final busesStreamProvider = StreamProvider.family<List<BusModel>, String>((ref, driverId) {
+final busesStreamProvider = StreamProvider.family<List<BusModel>, String>((
+  ref,
+  driverId,
+) {
   final firestoreService = ref.watch(firestoreServiceProvider);
   return firestoreService.getBusesStream(driverId);
 });
 
-final alertsStreamProvider = StreamProvider.family<List<AlertModel>, String>((ref, driverId) {
+final alertsStreamProvider = StreamProvider.family<List<AlertModel>, String>((
+  ref,
+  driverId,
+) {
   final firestoreService = ref.watch(firestoreServiceProvider);
   return firestoreService.getAlertsStream(driverId);
 });
 
-final ratingsStreamProvider = StreamProvider.family<List<RatingModel>, String>((ref, driverId) {
+final ratingsStreamProvider = StreamProvider.family<List<RatingModel>, String>((
+  ref,
+  driverId,
+) {
   final firestoreService = ref.watch(firestoreServiceProvider);
   return firestoreService.getRatingsStream(driverId);
 });
 
-final complaintsStreamProvider = StreamProvider.family<List<ComplaintModel>, String>((ref, driverId) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getComplaintsStream(driverId);
-});
+final complaintsStreamProvider =
+    StreamProvider.family<List<ComplaintModel>, String>((ref, driverId) {
+      final firestoreService = ref.watch(firestoreServiceProvider);
+      return firestoreService.getComplaintsStream(driverId);
+    });
 
 // Check-in Status Provider
 final checkedInProvider = StateProvider<bool>((ref) {

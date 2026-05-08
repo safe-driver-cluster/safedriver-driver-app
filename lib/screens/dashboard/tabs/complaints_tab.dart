@@ -25,7 +25,9 @@ class _ComplaintsTabState extends ConsumerState<ComplaintsTab> {
   Widget build(BuildContext context) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final complaints = userId != null ? ref.watch(complaintsStreamProvider(userId)) : const AsyncValue.loading();
+    final complaints = userId != null
+        ? ref.watch(complaintsStreamProvider(userId))
+        : const AsyncValue.loading();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -86,7 +88,9 @@ class _ComplaintsTabState extends ConsumerState<ComplaintsTab> {
                               Expanded(
                                 child: Text(
                                   complaint.title,
-                                  style: Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -121,9 +125,9 @@ class _ComplaintsTabState extends ConsumerState<ComplaintsTab> {
                           const SizedBox(height: 8),
                           Text(
                             complaint.createdAt.toString().split(' ')[0],
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontSize: 10,
-                            ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(fontSize: 10),
                           ),
                         ],
                       ),
@@ -132,12 +136,8 @@ class _ComplaintsTabState extends ConsumerState<ComplaintsTab> {
                 },
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (err, stack) => Center(
-              child: Text('Error: $err'),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
           ),
         ],
       ),

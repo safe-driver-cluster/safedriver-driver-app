@@ -9,7 +9,10 @@ class FirestoreService {
     try {
       final doc = await _firestore.collection('drivers').doc(driverId).get();
       if (doc.exists) {
-        return DriverModel.fromJson({...doc.data() as Map<String, dynamic>, 'driverId': doc.id});
+        return DriverModel.fromJson({
+          ...doc.data() as Map<String, dynamic>,
+          'driverId': doc.id,
+        });
       }
       return null;
     } catch (e) {
@@ -29,7 +32,7 @@ class FirestoreService {
       if (snapshot.docs.isNotEmpty) {
         return DriverModel.fromJson({
           ...snapshot.docs.first.data() as Map<String, dynamic>,
-          'driverId': snapshot.docs.first.id
+          'driverId': snapshot.docs.first.id,
         });
       }
       return null;
@@ -39,7 +42,10 @@ class FirestoreService {
     }
   }
 
-  Future<void> updateDriverProfile(String driverId, Map<String, dynamic> data) async {
+  Future<void> updateDriverProfile(
+    String driverId,
+    Map<String, dynamic> data,
+  ) async {
     try {
       await _firestore.collection('drivers').doc(driverId).update(data);
     } catch (e) {
@@ -56,10 +62,15 @@ class FirestoreService {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => AttendanceModel.fromJson({...doc.data(), 'attendanceId': doc.id}))
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) => AttendanceModel.fromJson({
+                  ...doc.data(),
+                  'attendanceId': doc.id,
+                }),
+              )
+              .toList();
+        });
   }
 
   Future<void> checkIn(String driverId, DateTime now) async {
@@ -100,10 +111,10 @@ class FirestoreService {
         .where('assignedDriver', isEqualTo: driverId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => BusModel.fromJson({...doc.data(), 'busId': doc.id}))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => BusModel.fromJson({...doc.data(), 'busId': doc.id}))
+              .toList();
+        });
   }
 
   // Alerts Operations
@@ -114,10 +125,13 @@ class FirestoreService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => AlertModel.fromJson({...doc.data(), 'alertId': doc.id}))
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) =>
+                    AlertModel.fromJson({...doc.data(), 'alertId': doc.id}),
+              )
+              .toList();
+        });
   }
 
   // Ratings Operations
@@ -128,10 +142,13 @@ class FirestoreService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => RatingModel.fromJson({...doc.data(), 'ratingId': doc.id}))
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) =>
+                    RatingModel.fromJson({...doc.data(), 'ratingId': doc.id}),
+              )
+              .toList();
+        });
   }
 
   // Complaints Operations
@@ -142,13 +159,21 @@ class FirestoreService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => ComplaintModel.fromJson({...doc.data(), 'complaintId': doc.id}))
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) => ComplaintModel.fromJson({
+                  ...doc.data(),
+                  'complaintId': doc.id,
+                }),
+              )
+              .toList();
+        });
   }
 
-  Future<void> submitComplaint(String driverId, ComplaintModel complaint) async {
+  Future<void> submitComplaint(
+    String driverId,
+    ComplaintModel complaint,
+  ) async {
     try {
       await _firestore.collection('complaints').add({
         'driverId': driverId,

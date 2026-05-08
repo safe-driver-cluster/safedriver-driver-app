@@ -81,9 +81,15 @@ class AttendanceModel {
     return AttendanceModel(
       attendanceId: json['attendanceId'] ?? '',
       driverId: json['driverId'] ?? '',
-      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
-      checkInTime: json['checkInTime'] != null ? DateTime.parse(json['checkInTime']) : null,
-      checkOutTime: json['checkOutTime'] != null ? DateTime.parse(json['checkOutTime']) : null,
+      date: json['date'] != null
+          ? DateTime.parse(json['date'])
+          : DateTime.now(),
+      checkInTime: json['checkInTime'] != null
+          ? DateTime.parse(json['checkInTime'])
+          : null,
+      checkOutTime: json['checkOutTime'] != null
+          ? DateTime.parse(json['checkOutTime'])
+          : null,
       status: json['status'] ?? 'absent',
     );
   }
@@ -159,7 +165,9 @@ class AlertModel {
       driverId: json['driverId'] ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
       type: json['type'] ?? 'info',
     );
   }
@@ -200,7 +208,9 @@ class RatingModel {
       rating: (json['rating'] ?? 0).toDouble(),
       passengerName: json['passengerName'] ?? '',
       comment: json['comment'] ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
     );
   }
 
@@ -240,7 +250,9 @@ class ComplaintModel {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       status: json['status'] ?? 'pending',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
     );
   }
 

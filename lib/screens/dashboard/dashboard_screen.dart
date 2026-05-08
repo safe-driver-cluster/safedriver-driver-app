@@ -56,10 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return true;
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(locale!.dashboard),
-          elevation: 0,
-        ),
+        appBar: AppBar(title: Text(locale!.dashboard), elevation: 0),
         drawer: const DrawerWidget(),
         body: _tabs[_selectedIndex],
         bottomNavigationBar: BottomNavigationBar(

@@ -10,7 +10,9 @@ class BusesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = AppLocalizations.of(context);
     final userId = ref.watch(currentUserIdProvider);
-    final buses = userId != null ? ref.watch(busesStreamProvider(userId)) : const AsyncValue.loading();
+    final buses = userId != null
+        ? ref.watch(busesStreamProvider(userId))
+        : const AsyncValue.loading();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -102,12 +104,8 @@ class BusesTab extends ConsumerWidget {
                 },
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (err, stack) => Center(
-              child: Text('Error: $err'),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
           ),
         ],
       ),
