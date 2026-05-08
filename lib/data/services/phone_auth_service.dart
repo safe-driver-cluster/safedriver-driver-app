@@ -1,7 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/passenger_model.dart';
-import 'passenger_service.dart';
 import 'sms_gateway_service.dart';
 
 class PhoneAuthService {
@@ -10,7 +8,6 @@ class PhoneAuthService {
   PhoneAuthService._internal();
 
   final SmsGatewayService _smsGateway = SmsGatewayService();
-  final PassengerService _passengerService = PassengerService.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Send OTP to phone number
