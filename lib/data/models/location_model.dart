@@ -14,16 +14,23 @@ class LocationModel {
     this.timestamp,
   });
 
-  /// Create LocationModel from Firestore document
-  factory LocationModel.fromFirestore(Map<String, dynamic> data) {
+  /// Create LocationModel from JSON
+  factory LocationModel.fromJson(Map<String, dynamic> json) {
     return LocationModel(
-      latitude: (data['latitude'] ?? 0.0).toDouble(),
-      longitude: (data['longitude'] ?? 0.0).toDouble(),
-      address: data['address'] as String?,
-      timestamp: data['timestamp'] != null
-          ? (data['timestamp'] as Timestamp).toDate()
+      latitude: (json['latitude'] ?? 0.0).toDouble(),
+      longitude: (json['longitude'] ?? 0.0).toDouble(),
+      address: json['address'] as String?,
+      timestamp: json['timestamp'] != null
+          ? (json['timestamp'] is Timestamp
+              ? (json['timestamp'] as Timestamp).toDate()
+              : DateTime.parse(json['timestamp'] as String))
           : null,
     );
+  }
+
+  /// Create LocationModel from Firestore document
+  factory LocationModel.fromFirestore(Map<String, dynamic> data) {
+    return LocationModel.fromJson(data);
   }
 
   /// Create LocationModel from GeoPoint
