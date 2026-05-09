@@ -1,0 +1,734 @@
+const functions = require('firebase-functions/v1');
+const admin = require('firebase-admin');
+const axios = require('axios');
+const crypto = require('crypto');
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const { RateLimiterMemory } = require('rate-limiter-flexible');
+
+// Load environment variables (only in local development)
+try {
+    require('dotenv').config();
+} catch (error) {
+    console.log('dotenv not loaded, using environment variables');
+}
+
+// Initialize Firebase Admin
+admin.initializeApp();
+const db = admin.firestore();
+const auth = admin.auth();
+
+// Environment configuration with fallbacks
+const config = {
+    textlk: {
+        apiToken: process.env.TEXTLK_API_TOKEN || functions.config().textlk?.apitoken,
+        apiUrl: process.env.TEXTLK_API_URL || 'https://app.text.lk/api/v3/sms/send',
+        senderId: process.env.TEXTLK_SENDER_ID || functions.config().textlk?.senderid || 'SafeDriver',
+    },
+    otp: {
+        expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
+        maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS) || 3,
+        length: parseInt(process.env.OTP_LENGTH) || 6,
+    },
+    rateLimits: {
+        otpPoints: parseInt(process.env.OTP_RATE_LIMIT_POINTS) || 3,
+        otpDuration: parseInt(process.env.OTP_RATE_LIMIT_DURATION) || 3600,
+        verificationPoints: parseInt(process.env.VERIFICATION_RATE_LIMIT_POINTS) || 5,
+        verificationDuration: parseInt(process.env.VERIFICATION_RATE_LIMIT_DURATION) || 300,
+    },
+    firebase: {
+        projectId: process.env.PROJECT_ID || 'safe-driver-system',
+        region: process.env.REGION || 'asia-south1',
+    },
+    debug: process.env.DEBUG_MODE === 'true' || false,
+};
+
+// Rate limiter configuration
+const otpRateLimiter = new RateLimiterMemory({
+    keyGenerator: (req) => req.body.phoneNumber || req.ip,
+    points: config.rateLimits.otpPoints,
+    duration: config.rateLimits.otpDuration,
+});
+
+const verificationRateLimiter = new RateLimiterMemory({
+    keyGenerator: (req) => req.body.phoneNumber || req.ip,
+    points: config.rateLimits.verificationPoints,
+    duration: config.rateLimits.verificationDuration,
+});
+
+// Utility functions
+function generateOTP() {
+    const otpLength = config.otp.length;
+    const min = Math.pow(10, otpLength - 1);
+    const max = Math.pow(10, otpLength) - 1;
+    return Math.floor(min + Math.random() * (max - min + 1)).toString();
+}
+
+function formatSMSMessage(otp) {
+    const template = process.env.SMS_TEMPLATE ||
+        'Your SafeDriver verification code is: {OTP}. Valid for {MINUTES} minutes. Do not share this code with anyone.';
+
+    return template
+        .replace('{OTP}', otp)
+        .replace('{MINUTES}', config.otp.expiryMinutes.toString());
+} function hashOTP(otp) {
+    return crypto.createHash('sha256').update(otp).digest('hex');
+}
+
+function formatPhoneNumber(phoneNumber) {
+    // Ensure Sri Lankan phone number format (+94XXXXXXXXX)
+    let cleaned = phoneNumber.replace(/\D/g, '');
+
+    if (cleaned.startsWith('0')) {
+        cleaned = '94' + cleaned.substring(1);
+    } else if (cleaned.startsWith('94')) {
+        cleaned = cleaned;
+    } else if (cleaned.length === 9) {
+        cleaned = '94' + cleaned;
+    }
+
+    return '+' + cleaned;
+}
+
+function validateSriLankanPhoneNumber(phoneNumber) {
+    const formatted = formatPhoneNumber(phoneNumber);
+    const regex = /^\+94[1-9]\d{8}$/;
+    return regex.test(formatted);
+}
+
+async function sendSMS(phoneNumber, message) {
+    try {
+        if (config.debug) {
+            console.log(`Sending SMS to ${phoneNumber} via Text.lk API v3`);
+        }
+
+        // Text.lk API v3 request format
+        const requestData = {
+            recipient: phoneNumber.replace('+', ''),
+            message: message,
+            sender_id: config.textlk.senderId,
+        };
+
+        const response = await axios.post(config.textlk.apiUrl, requestData, {
+            headers: {
+                'Authorization': `Bearer ${config.textlk.apiToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            timeout: 15000, // Increased timeout for API v3
+        });
+
+        if (config.debug) {
+            console.log('Text.lk API Response:', response.data);
+        }
+
+        // Text.lk API v3 response format
+        const isSuccess = response.status === 200 && response.data.status === 'success';
+
+        return {
+            success: isSuccess,
+            response: response.data,
+            messageId: response.data.data?.message_id || response.data.message_id,
+            status: response.data.status,
+            message: response.data.message,
+        };
+    } catch (error) {
+        console.error('SMS sending failed:', {
+            error: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            phoneNumber: phoneNumber,
+        });
+
+        throw new functions.https.HttpsError(
+            'internal',
+            'Failed to send SMS via Text.lk',
+            {
+                error: error.message,
+                apiResponse: error.response?.data,
+                phoneNumber: phoneNumber,
+            }
+        );
+    }
+}// Cloud Function: Send OTP
+exports.sendOTP = functions
+    .region('asia-south1')
+    .https.onCall(async (data, context) => {
+        try {
+            // Validate input
+            const { phoneNumber } = data;
+
+            if (!phoneNumber) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Phone number is required'
+                );
+            }
+
+            // Format and validate phone number
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+            if (!validateSriLankanPhoneNumber(formattedPhone)) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Invalid Sri Lankan phone number format'
+                );
+            }
+
+            // Rate limiting
+            try {
+                await otpRateLimiter.consume(formattedPhone);
+            } catch (rejRes) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    `Too many OTP requests. Try again in ${Math.round(rejRes.msBeforeNext / 1000 / 60)} minutes`
+                );
+            }
+
+            // Generate OTP and verification ID
+            const otp = generateOTP();
+            const verificationId = crypto.randomUUID();
+            const hashedOTP = hashOTP(otp);
+            const expiresAt = admin.firestore.Timestamp.fromDate(
+                new Date(Date.now() + config.otp.expiryMinutes * 60 * 1000)
+            );            // Store verification record in Firestore
+            await db.collection('otp_verifications').doc(verificationId).set({
+                phoneNumber: formattedPhone,
+                hashedOTP,
+                attempts: 0,
+                maxAttempts: config.otp.maxAttempts,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                expiresAt,
+                status: 'pending',
+                ipAddress: context.rawRequest?.ip,
+                userAgent: context.rawRequest?.get('user-agent'),
+            });
+
+            // Prepare SMS message using template
+            const message = formatSMSMessage(otp);            // Send SMS
+            const smsResult = await sendSMS(formattedPhone, message);
+
+            // Update verification record with SMS status
+            const updateData = {
+                smsStatus: smsResult.success ? 'sent' : 'failed',
+                smsResponse: smsResult.response,
+            };
+
+            // Only add messageId if it exists
+            if (smsResult.messageId) {
+                updateData.smsMessageId = smsResult.messageId;
+            }
+
+            await db.collection('otp_verifications').doc(verificationId).update(updateData);
+
+            if (!smsResult.success) {
+                throw new functions.https.HttpsError(
+                    'internal',
+                    'Failed to send SMS verification code'
+                );
+            }
+
+            console.log(`OTP sent successfully to ${formattedPhone}, verificationId: ${verificationId}`);
+
+            return {
+                success: true,
+                verificationId,
+                phoneNumber: formattedPhone,
+                expiresAt: expiresAt.toDate().toISOString(),
+            };
+        } catch (error) {
+            console.error('SendOTP error:', error);
+
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+
+            throw new functions.https.HttpsError(
+                'internal',
+                'An unexpected error occurred while sending OTP'
+            );
+        }
+    });
+
+// Cloud Function: Verify OTP
+exports.verifyOTP = functions
+    .region('asia-south1')
+    .https.onCall(async (data, context) => {
+        try {
+            const { verificationId, otp, phoneNumber } = data;
+
+            if (!verificationId || !otp) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Verification ID and OTP are required'
+                );
+            }
+
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+
+            // Rate limiting for verification attempts
+            try {
+                await verificationRateLimiter.consume(formattedPhone);
+            } catch (rejRes) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    'Too many verification attempts. Please try again later.'
+                );
+            }
+
+            // Get verification record
+            const verificationDoc = await db.collection('otp_verifications').doc(verificationId).get();
+
+            if (!verificationDoc.exists) {
+                throw new functions.https.HttpsError(
+                    'not-found',
+                    'Invalid verification ID'
+                );
+            }
+
+            const verificationData = verificationDoc.data();
+
+            // Check if already verified
+            if (verificationData.status === 'verified') {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'OTP has already been verified'
+                );
+            }
+
+            // Check if expired
+            if (verificationData.expiresAt.toDate() < new Date()) {
+                await verificationDoc.ref.update({
+                    status: 'expired',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'deadline-exceeded',
+                    'OTP has expired. Please request a new one.'
+                );
+            }
+
+            // Check attempts
+            if (verificationData.attempts >= verificationData.maxAttempts) {
+                await verificationDoc.ref.update({
+                    status: 'failed',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    'Maximum verification attempts exceeded. Please request a new OTP.'
+                );
+            }
+
+            // Verify OTP
+            const hashedInputOTP = hashOTP(otp);
+            const isValidOTP = hashedInputOTP === verificationData.hashedOTP;
+
+            if (!isValidOTP) {
+                // Increment attempts
+                await verificationDoc.ref.update({
+                    attempts: admin.firestore.FieldValue.increment(1),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Invalid OTP. Please try again.'
+                );
+            }
+
+            // OTP is valid - mark as verified
+            await verificationDoc.ref.update({
+                status: 'verified',
+                verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log(`✅ OTP verified successfully for ${formattedPhone}`);
+
+            // Return success WITHOUT trying to create Firebase Auth users
+            // The client will handle user profile creation and authentication
+            return {
+                success: true,
+                message: 'Phone number verified successfully',
+                phoneNumber: formattedPhone,
+                verificationId: verificationId,
+            };
+
+        } catch (error) {
+            console.error('❌ VerifyOTP error:', error);
+
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+
+            throw new functions.https.HttpsError(
+                'internal',
+                'An unexpected error occurred during verification'
+            );
+        }
+    });
+
+// Cloud Function: Send driver login OTP with Text.lk
+exports.driverSendOTP = functions
+    .region('asia-south1')
+    .https.onCall(async (data, context) => {
+        try {
+            const { phoneNumber } = data;
+
+            if (!phoneNumber) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Phone number is required'
+                );
+            }
+
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+            if (!validateSriLankanPhoneNumber(formattedPhone)) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Invalid Sri Lankan phone number format'
+                );
+            }
+
+            const driver = await findActiveDriverByPhone(formattedPhone);
+            if (!driver) {
+                throw new functions.https.HttpsError(
+                    'not-found',
+                    'No active driver found for this phone number'
+                );
+            }
+
+            try {
+                await otpRateLimiter.consume(`driver:${formattedPhone}`);
+            } catch (rejRes) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    `Too many OTP requests. Try again in ${Math.round(rejRes.msBeforeNext / 1000 / 60)} minutes`
+                );
+            }
+
+            const otp = generateOTP();
+            const verificationId = crypto.randomUUID();
+            const hashedOTP = hashOTP(otp);
+            const expiresAt = admin.firestore.Timestamp.fromDate(
+                new Date(Date.now() + config.otp.expiryMinutes * 60 * 1000)
+            );
+
+            await db.collection('otp_verifications').doc(verificationId).set({
+                type: 'driver_login',
+                driverId: driver.id,
+                phoneNumber: formattedPhone,
+                hashedOTP,
+                attempts: 0,
+                maxAttempts: config.otp.maxAttempts,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                expiresAt,
+                status: 'pending',
+                ipAddress: context.rawRequest?.ip,
+                userAgent: context.rawRequest?.get('user-agent'),
+            });
+
+            const smsResult = await sendSMS(formattedPhone, formatSMSMessage(otp));
+            const updateData = {
+                smsStatus: smsResult.success ? 'sent' : 'failed',
+                smsResponse: smsResult.response,
+            };
+
+            if (smsResult.messageId) {
+                updateData.smsMessageId = smsResult.messageId;
+            }
+
+            await db.collection('otp_verifications').doc(verificationId).update(updateData);
+
+            if (!smsResult.success) {
+                throw new functions.https.HttpsError(
+                    'internal',
+                    'Failed to send SMS verification code'
+                );
+            }
+
+            return {
+                success: true,
+                verificationId,
+                phoneNumber: formattedPhone,
+                driverId: driver.id,
+                expiresAt: expiresAt.toDate().toISOString(),
+            };
+        } catch (error) {
+            console.error('driverSendOTP error:', error);
+
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+
+            throw new functions.https.HttpsError(
+                'internal',
+                'An unexpected error occurred while sending driver OTP'
+            );
+        }
+    });
+
+// Cloud Function: Verify driver login OTP and return Firebase custom token
+exports.driverVerifyOTP = functions
+    .region('asia-south1')
+    .https.onCall(async (data, context) => {
+        try {
+            const { verificationId, otp, phoneNumber } = data;
+
+            if (!verificationId || !otp || !phoneNumber) {
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Verification ID, OTP and phone number are required'
+                );
+            }
+
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+
+            try {
+                await verificationRateLimiter.consume(`driver:${formattedPhone}`);
+            } catch (rejRes) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    'Too many verification attempts. Please try again later.'
+                );
+            }
+
+            const verificationDoc = await db.collection('otp_verifications').doc(verificationId).get();
+            if (!verificationDoc.exists) {
+                throw new functions.https.HttpsError(
+                    'not-found',
+                    'Invalid verification ID'
+                );
+            }
+
+            const verificationData = verificationDoc.data();
+            if (verificationData.type !== 'driver_login') {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'Invalid verification type'
+                );
+            }
+
+            if (verificationData.phoneNumber !== formattedPhone) {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'Phone number does not match verification request'
+                );
+            }
+
+            if (verificationData.status === 'verified') {
+                throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'OTP has already been verified'
+                );
+            }
+
+            if (verificationData.expiresAt.toDate() < new Date()) {
+                await verificationDoc.ref.update({
+                    status: 'expired',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'deadline-exceeded',
+                    'OTP has expired. Please request a new one.'
+                );
+            }
+
+            if (verificationData.attempts >= verificationData.maxAttempts) {
+                await verificationDoc.ref.update({
+                    status: 'failed',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    'Maximum verification attempts exceeded. Please request a new OTP.'
+                );
+            }
+
+            const hashedInputOTP = hashOTP(otp);
+            if (hashedInputOTP !== verificationData.hashedOTP) {
+                await verificationDoc.ref.update({
+                    attempts: admin.firestore.FieldValue.increment(1),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'invalid-argument',
+                    'Invalid OTP. Please try again.'
+                );
+            }
+
+            const driver = await findActiveDriverByPhone(formattedPhone);
+            if (!driver || driver.id !== verificationData.driverId) {
+                await verificationDoc.ref.update({
+                    status: 'failed',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                throw new functions.https.HttpsError(
+                    'not-found',
+                    'No active driver found for this phone number'
+                );
+            }
+
+            const uid = driverAuthUid(driver.id);
+            await driver.ref.set({
+                authUid: uid,
+                phoneVerified: true,
+                lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+
+            await verificationDoc.ref.update({
+                status: 'verified',
+                verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            const customToken = await auth.createCustomToken(uid, {
+                role: 'driver',
+                driverId: driver.id,
+                phoneNumber: formattedPhone,
+            });
+
+            return {
+                success: true,
+                customToken,
+                driverId: driver.id,
+                uid,
+                phoneNumber: formattedPhone,
+            };
+        } catch (error) {
+            console.error('driverVerifyOTP error:', error);
+
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+
+            throw new functions.https.HttpsError(
+                'internal',
+                'An unexpected error occurred during driver verification'
+            );
+        }
+    });
+
+// Cloud Function: Cleanup expired OTP records
+exports.cleanupExpiredOTPs = functions
+    .region('asia-south1')
+    .pubsub.schedule('every 1 hours')
+    .onRun(async (context) => {
+        const now = admin.firestore.Timestamp.now();
+        const expiredQuery = db.collection('otp_verifications')
+            .where('expiresAt', '<', now)
+            .limit(100);
+
+        const expiredDocs = await expiredQuery.get();
+
+        if (expiredDocs.empty) {
+            console.log('No expired OTP records to clean up');
+            return null;
+        }
+
+        const batch = db.batch();
+        expiredDocs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        console.log(`Cleaned up ${expiredDocs.size} expired OTP records`);
+
+        return null;
+    });
+
+// Reset password with phone verification
+exports.resetPassword = functions
+    .region('asia-south1')
+    .https.onCall(async (data, context) => {
+        const { email, phoneNumber, newPassword, otpCode } = data;
+
+        // Validate input
+        if (!email || !phoneNumber || !newPassword || !otpCode) {
+            throw new functions.https.HttpsError(
+                'invalid-argument',
+                'Missing required parameters: email, phoneNumber, newPassword, otpCode'
+            );
+        }
+
+        try {
+            // Verify the user exists in passenger_details
+            const passengerQuery = await db.collection('passenger_details')
+                .where('email', '==', email)
+                .where('phoneNumber', '==', phoneNumber)
+                .limit(1)
+                .get();
+
+            if (passengerQuery.empty) {
+                throw new functions.https.HttpsError(
+                    'not-found',
+                    'No account found with this email and phone number'
+                );
+            }
+
+            // Get Firebase Auth user
+            let user;
+            try {
+                user = await auth.getUserByEmail(email);
+            } catch (error) {
+                if (error.code === 'auth/user-not-found') {
+                    throw new functions.https.HttpsError(
+                        'not-found',
+                        'No authentication record found'
+                    );
+                }
+                throw error;
+            }
+
+            // Update password in Firebase Auth
+            await auth.updateUser(user.uid, {
+                password: newPassword,
+            });
+
+            // Update password updated timestamp in Firestore
+            const passengerDoc = passengerQuery.docs[0];
+            await passengerDoc.ref.update({
+                passwordUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log(`Password reset successful for user ${user.uid}`);
+
+            return {
+                success: true,
+                message: 'Password reset successfully',
+                uid: user.uid,
+            };
+
+        } catch (error) {
+            console.error('Password reset error:', error);
+
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+
+            throw new functions.https.HttpsError(
+                'internal',
+                'Failed to reset password: ' + error.message
+            );
+        }
+    });
+
+// ============================================================================
+// IMPORT NOTIFICATION FUNCTIONS
+// ============================================================================
+const notificationFunctions = require('./notifications');
+Object.assign(exports, notificationFunctions);
+
+// Health check endpoint
+exports.healthCheck = functions
+    .region('asia-south1')
+    .https.onRequest((req, res) => {
+        res.json({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            region: 'asia-south1',
+            service: 'safe-driver-sms-gateway',
+        });
+    });
