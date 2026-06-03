@@ -15,19 +15,21 @@ class AttendancePage extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final driver = AppScope.of(context).driver!;
     final vm = DriverDashboardViewModel();
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('myAttendance'))),
+    return DriverPageShell(
+      title: l10n.t('myAttendance'),
       body: StreamBuilder(
         stream: vm.attendance(driver.id),
         builder: (context, snapshot) {
           final data = snapshot.data ?? [];
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          if (data.isEmpty)
+          }
+          if (data.isEmpty) {
             return EmptyState(
               message: l10n.t('noAttendance'),
               icon: Icons.event_busy_rounded,
             );
+          }
           return ListView.separated(
             padding: const EdgeInsets.all(AppDesign.spaceLG),
             itemCount: data.length,
