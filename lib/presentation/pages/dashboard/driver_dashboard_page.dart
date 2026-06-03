@@ -21,14 +21,16 @@ import '../support/support_page.dart';
 import '../../widgets/common/professional_widgets.dart';
 
 class DriverDashboardPage extends StatefulWidget {
-  const DriverDashboardPage({super.key});
+  const DriverDashboardPage({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   State<DriverDashboardPage> createState() => _DriverDashboardPageState();
 }
 
 class _DriverDashboardPageState extends State<DriverDashboardPage> {
-  int _index = 0;
+  late int _index = widget.initialIndex.clamp(0, 3).toInt();
   bool _refreshingDriver = false;
 
   Future<void> _refreshDriverProfile(String driverId) async {
@@ -112,7 +114,7 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
     return DriverPageShell(
       title: l10n.t(titleKey),
       subtitle: _index == 0 ? l10n.t('tagline') : null,
-      showBack: false,
+      showBack: true,
       actions: [
         DriverIconButton(
           tooltip: l10n.t('settings'),
