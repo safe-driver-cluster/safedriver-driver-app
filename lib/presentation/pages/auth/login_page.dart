@@ -32,11 +32,23 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _sendOtp() async {
     final l10n = AppLocalizations.of(context);
-    if (!_formKey.currentState!.validate()) return;
+    debugPrint('[DriverLoginPage._sendOtp] pressed');
+    debugPrint('[DriverLoginPage._sendOtp] raw local phone: ${_phone.text}');
+    debugPrint(
+      '[DriverLoginPage._sendOtp] country code: $_selectedCountryCode',
+    );
+    debugPrint('[DriverLoginPage._sendOtp] full phone: $_fullPhoneNumber');
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('[DriverLoginPage._sendOtp] form validation failed');
+      return;
+    }
     HapticFeedback.lightImpact();
     final result = await _viewModel.startOtpLogin(_fullPhoneNumber);
     if (!mounted) return;
     if (result == null) {
+      debugPrint(
+        '[DriverLoginPage._sendOtp] failed errorCode=${_viewModel.errorCode}',
+      );
       _showSnack(
         _viewModel.errorCode == 'driver_not_found'
             ? l10n.t('driverNotFound')
@@ -44,6 +56,9 @@ class _LoginPageState extends State<LoginPage> {
       );
       return;
     }
+    debugPrint(
+      '[DriverLoginPage._sendOtp] success verificationId=${result.verificationId}, phone=${result.phoneNumber}, driverId=${result.driver.id}',
+    );
     Navigator.pushNamed(context, AppRoutes.otp, arguments: result);
   }
 
@@ -54,6 +69,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showSnack(String message) {
+    debugPrint('[DriverLoginPage._showSnack] $message');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -151,8 +167,10 @@ class _LoginPageState extends State<LoginPage> {
                                     setState(() => _selectedCountryCode = code),
                                 labelText: l10n.t('phoneNumber'),
                                 validator: (value) {
-                                  if (value == null || value.trim().length < 9)
+                                  if (value == null ||
+                                      value.trim().length < 9) {
                                     return l10n.t('phoneRequired');
+                                  }
                                   return null;
                                 },
                               ),
