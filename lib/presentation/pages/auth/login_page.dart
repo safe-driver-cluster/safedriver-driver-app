@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
@@ -127,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                           l10n.t('loginTitle'),
                           style: const TextStyle(
                             fontSize: 34,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: AppFontWeights.extraBold,
                             color: Colors.white,
                           ),
                         ),
@@ -137,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white.withOpacity(0.86),
+                            color: Colors.white.withValues(alpha: 0.86),
                           ),
                         ),
                       ],
