@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -135,7 +136,10 @@ class _OnboardSlide extends StatelessWidget {
         Text(
           data.title,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: AppFontWeights.extraBold,
+          ),
         ),
         const SizedBox(height: 14),
         Text(
