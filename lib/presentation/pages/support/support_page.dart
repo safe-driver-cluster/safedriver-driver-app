@@ -10,8 +10,8 @@ class SupportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('support'))),
+    return DriverPageShell(
+      title: l10n.t('support'),
       body: ListView(
         padding: const EdgeInsets.all(AppDesign.spaceLG),
         children: [
