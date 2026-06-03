@@ -87,7 +87,10 @@ class DriverProfile {
   }
 
   factory DriverProfile.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+    return DriverProfile.fromMap(doc.id, doc.data() ?? {});
+  }
+
+  factory DriverProfile.fromMap(String id, Map<String, dynamic> data) {
     final performance = Map<String, dynamic>.from(
       data['performance'] as Map? ?? {},
     );
@@ -95,12 +98,12 @@ class DriverProfile {
       data['safetyMetrics'] as Map? ?? {},
     );
     return DriverProfile(
-      id: doc.id,
+      id: id,
       employeeId: readString(data, [
         'employeeId',
         'driverId',
         'staffId',
-      ], doc.id),
+      ], id),
       firstName: readString(data, ['firstName']),
       lastName: readString(data, ['lastName']),
       phoneNumber: readString(data, [
