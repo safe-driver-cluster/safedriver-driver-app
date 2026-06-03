@@ -22,9 +22,9 @@ const auth = admin.auth();
 // Environment configuration with fallbacks
 const config = {
     textlk: {
-        apiToken: process.env.TEXTLK_API_TOKEN || functions.config().textlk?.apitoken,
+        apiToken: process.env.TEXTLK_API_TOKEN,
         apiUrl: process.env.TEXTLK_API_URL || 'https://app.text.lk/api/v3/sms/send',
-        senderId: process.env.TEXTLK_SENDER_ID || functions.config().textlk?.senderid || 'SafeDriver',
+        senderId: process.env.TEXTLK_SENDER_ID || 'SafeDriver',
     },
     otp: {
         expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
@@ -38,8 +38,8 @@ const config = {
         verificationDuration: parseInt(process.env.VERIFICATION_RATE_LIMIT_DURATION) || 300,
     },
     firebase: {
-        projectId: process.env.PROJECT_ID || 'safe-driver-system',
-        region: process.env.REGION || 'asia-south1',
+        projectId: process.env.FIREBASE_PROJECT_ID || process.env.PROJECT_ID || 'safe-driver-system',
+        region: process.env.FIREBASE_REGION || process.env.REGION || 'asia-south1',
     },
     debug: process.env.DEBUG_MODE === 'true' || false,
 };
@@ -97,8 +97,94 @@ function validateSriLankanPhoneNumber(phoneNumber) {
     return regex.test(formatted);
 }
 
+function phoneVariants(phoneNumber) {
+    const formatted = formatPhoneNumber(phoneNumber);
+    const withoutPlus = formatted.replace('+', '');
+    const local = withoutPlus.startsWith('94')
+        ? '0' + withoutPlus.substring(2)
+        : withoutPlus;
+
+    return [...new Set([
+        phoneNumber,
+        formatted,
+        withoutPlus,
+        local,
+    ].filter(Boolean))];
+}
+
+function isActiveDriver(data) {
+    if (data.isActive === false) {
+        return false;
+    }
+
+    const status = String(data.status || data.currentStatus || '').toLowerCase();
+    return !['inactive', 'disabled', 'suspended', 'blocked', 'deleted'].includes(status);
+}
+
+async function findActiveDriverByPhone(phoneNumber) {
+    const fields = ['phoneNumber', 'phone', 'mobileNumber', 'contactNumber'];
+    const variants = phoneVariants(phoneNumber);
+
+    for (const field of fields) {
+        for (const variant of variants) {
+            const snapshot = await db.collection('drivers')
+                .where(field, '==', variant)
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                if (isActiveDriver(doc.data())) {
+                    return {
+                        id: doc.id,
+                        ref: doc.ref,
+                        data: doc.data(),
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function driverAuthUid(driverId) {
+    return `driver_${driverId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+function publicDriverProfile(driver) {
+    const data = driver.data || {};
+    return {
+        id: driver.id,
+        employeeId: data.employeeId || data.driverId || data.staffId || driver.id,
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        name: data.name || data.fullName || '',
+        phoneNumber: data.phoneNumber || data.phone || data.mobileNumber || data.contactNumber || '',
+        email: data.email || '',
+        profileImageUrl: data.profileImageUrl || data.photoUrl || data.avatarUrl || '',
+        licenseNumber: data.licenseNumber || data.licenceNumber || '',
+        licenseType: data.licenseType || data.licenceType || 'Standard',
+        status: data.status || data.currentStatus || 'offDuty',
+        currentBusId: data.currentBusId || data.busId || data.assignedBusId || '',
+        currentRoute: data.currentRoute || data.routeNumber || data.route || '',
+        safetyScore: data.safetyScore || data.safetyMetrics?.overallScore || 0,
+        alertnessLevel: data.alertnessLevel || data.safetyMetrics?.alertnessLevel || 1,
+        rating: data.rating || data.performance?.overallRating || data.performance?.passengerRatings || 0,
+        totalRatings: data.totalRatings || data.performance?.totalRatings || 0,
+        isActive: data.isActive !== false,
+    };
+}
+
 async function sendSMS(phoneNumber, message) {
     try {
+        if (!config.textlk.apiToken) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'TEXTLK_API_TOKEN is not configured'
+            );
+        }
+
         if (config.debug) {
             console.log(`Sending SMS to ${phoneNumber} via Text.lk API v3`);
         }
@@ -134,6 +220,10 @@ async function sendSMS(phoneNumber, message) {
             message: response.data.message,
         };
     } catch (error) {
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+
         console.error('SMS sending failed:', {
             error: error.message,
             response: error.response?.data,
@@ -453,6 +543,7 @@ exports.driverSendOTP = functions
                 verificationId,
                 phoneNumber: formattedPhone,
                 driverId: driver.id,
+                driver: publicDriverProfile(driver),
                 expiresAt: expiresAt.toDate().toISOString(),
             };
         } catch (error) {
@@ -571,6 +662,12 @@ exports.driverVerifyOTP = functions
             }
 
             const uid = driverAuthUid(driver.id);
+            const customToken = await auth.createCustomToken(uid, {
+                role: 'driver',
+                driverId: driver.id,
+                phoneNumber: formattedPhone,
+            });
+
             await driver.ref.set({
                 authUid: uid,
                 phoneVerified: true,
@@ -584,18 +681,13 @@ exports.driverVerifyOTP = functions
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            const customToken = await auth.createCustomToken(uid, {
-                role: 'driver',
-                driverId: driver.id,
-                phoneNumber: formattedPhone,
-            });
-
             return {
                 success: true,
                 customToken,
                 driverId: driver.id,
                 uid,
                 phoneNumber: formattedPhone,
+                driver: publicDriverProfile(driver),
             };
         } catch (error) {
             console.error('driverVerifyOTP error:', error);
