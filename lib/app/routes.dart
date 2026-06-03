@@ -29,7 +29,10 @@ class AppRoutes {
       case otp:
         return _route(OtpPage(result: settings.arguments as OtpStartResult));
       case dashboard:
-        return _route(const DriverDashboardPage());
+        final initialIndex = settings.arguments is int
+            ? settings.arguments as int
+            : 0;
+        return _route(DriverDashboardPage(initialIndex: initialIndex));
       default:
         return _route(const SplashPage());
     }
