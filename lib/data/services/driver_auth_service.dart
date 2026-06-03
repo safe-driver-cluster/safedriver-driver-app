@@ -76,16 +76,18 @@ class DriverAuthService {
   }
 
   Future<DriverProfile?> findDriverById(String id) async {
-    final doc = await _firestore.collection('drivers').doc(id).get();
-    if (!doc.exists) return null;
-    final driver = DriverProfile.fromDoc(doc);
-    return driver.isActive ? driver : null;
+    try {
+      final doc = await _firestore.collection('drivers').doc(id).get();
+      if (!doc.exists) return null;
+      final driver = DriverProfile.fromDoc(doc);
+      return driver.isActive ? driver : null;
+    } on FirebaseException {
+      return null;
+    }
   }
 
   Future<OtpStartResult> startOtpLogin(String phoneInput) async {
     final phoneNumber = normalizePhone(phoneInput);
-    final driver = await findDriverByPhone(phoneNumber);
-    if (driver == null) throw DriverAuthException('driver_not_found');
 
     try {
       final callable = _functions.httpsCallable('driverSendOTP');
@@ -93,10 +95,16 @@ class DriverAuthService {
         'phoneNumber': phoneNumber,
       });
       final data = Map<String, dynamic>.from(result.data);
+      final driverId = data['driverId']?.toString();
+      final driverData = Map<String, dynamic>.from(data['driver'] as Map? ?? {});
+      if (driverId == null || driverId.isEmpty || driverData.isEmpty) {
+        throw DriverAuthException('driver_not_found');
+      }
+
       return OtpStartResult(
         verificationId: data['verificationId'] as String,
         phoneNumber: data['phoneNumber'] as String? ?? phoneNumber,
-        driver: driver,
+        driver: DriverProfile.fromMap(driverId, driverData),
         expiresAt: DateTime.tryParse(data['expiresAt']?.toString() ?? ''),
       );
     } on FirebaseFunctionsException catch (error) {
@@ -124,6 +132,7 @@ class DriverAuthService {
       final data = Map<String, dynamic>.from(result.data);
       final token = data['customToken']?.toString();
       final driverId = data['driverId']?.toString();
+      final driverData = Map<String, dynamic>.from(data['driver'] as Map? ?? {});
       if (token == null ||
           token.isEmpty ||
           driverId == null ||
@@ -132,9 +141,10 @@ class DriverAuthService {
       }
 
       await _auth.signInWithCustomToken(token);
-      final driver =
-          await findDriverById(driverId) ??
-          await findDriverByPhone(phoneNumber);
+      final returnedDriver = driverData.isEmpty
+          ? null
+          : DriverProfile.fromMap(driverId, driverData);
+      final driver = await findDriverById(driverId) ?? returnedDriver;
       if (driver == null) {
         await _auth.signOut();
         throw DriverAuthException('driver_not_found');
@@ -144,6 +154,8 @@ class DriverAuthService {
       throw DriverAuthException(
         error.code == 'not-found' ? 'driver_not_found' : 'login_failed',
       );
+    } on FirebaseAuthException {
+      throw DriverAuthException('login_failed');
     }
   }
 
