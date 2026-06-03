@@ -1,12 +1,18 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/driver_models.dart';
 
 class DriverDataService {
-  DriverDataService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  DriverDataService({FirebaseFirestore? firestore, FirebaseStorage? storage})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
 
   Stream<List<AttendanceRecord>> attendance(String driverId) {
     return _query('attendance', driverId).snapshots().map(
@@ -33,7 +39,7 @@ class DriverDataService {
     if (driver.currentBusId.isNotEmpty) {
       query = _firestore
           .collection('buses')
-          .where(FieldPath.documentId, isEqualTo: driver.currentBusId)
+          .where('busNumber', isEqualTo: driver.currentBusId)
           .limit(10);
     }
     return query.snapshots().map(
@@ -45,13 +51,34 @@ class DriverDataService {
     required String driverId,
     required String title,
     required String message,
-  }) {
-    return _firestore.collection('driverComplaints').add({
+    XFile? media,
+  }) async {
+    final doc = _firestore.collection('driverComplaints').doc();
+    String? mediaUrl;
+    String? mediaPath;
+    String? mediaType;
+    String? mediaName;
+
+    if (media != null) {
+      mediaName = media.name;
+      mediaType = media.mimeType ?? _guessContentType(media.path);
+      mediaPath = 'driverComplaints/$driverId/${doc.id}/$mediaName';
+      final upload = await _storage
+          .ref(mediaPath)
+          .putFile(File(media.path), SettableMetadata(contentType: mediaType));
+      mediaUrl = await upload.ref.getDownloadURL();
+    }
+
+    return doc.set({
       'driverId': driverId,
       'title': title,
       'message': message,
       'status': 'open',
       'createdAt': FieldValue.serverTimestamp(),
+      if (mediaUrl != null) 'mediaUrl': mediaUrl,
+      if (mediaPath != null) 'mediaPath': mediaPath,
+      if (mediaType != null) 'mediaType': mediaType,
+      if (mediaName != null) 'mediaName': mediaName,
     });
   }
 
@@ -67,5 +94,13 @@ class DriverDataService {
         .collection(collection)
         .where('driverId', isEqualTo: driverId)
         .limit(50);
+  }
+
+  String _guessContentType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    return 'image/jpeg';
   }
 }
