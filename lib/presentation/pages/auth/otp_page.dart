@@ -142,8 +142,9 @@ class _OtpPageState extends State<OtpPage> {
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(),
+        return DriverPageShell(
+          title: l10n.t('otpTitle'),
+          subtitle: _result.phoneNumber,
           body: Padding(
             padding: const EdgeInsets.all(AppDesign.spaceXL),
             child: Column(
@@ -153,15 +154,7 @@ class _OtpPageState extends State<OtpPage> {
                 Icon(Icons.verified_user_rounded, size: 74, color: th.primary),
                 const SizedBox(height: AppDesign.spaceXL),
                 Text(
-                  l10n.t('otpTitle'),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.headline3.copyWith(
-                    color: th.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppDesign.spaceMD),
-                Text(
-                  '${l10n.t('otpSubtitle')}\n${_result.phoneNumber}',
+                  l10n.t('otpSubtitle'),
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: th.textSecondary,
