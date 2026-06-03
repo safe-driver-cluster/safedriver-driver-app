@@ -15,10 +15,6 @@ service firebase.storage {
       return request.resource.contentType.matches('image/.*');
     }
 
-    function isValidVideoFile() {
-      return request.resource.contentType.matches('video/.*');
-    }
-
     function isValidMediaFile() {
       return request.resource.contentType.matches('(image|video)/.*') ||
              request.resource.contentType == 'application/pdf' ||
