@@ -13,8 +13,8 @@ class SettingsPage extends StatelessWidget {
     final app = AppScope.of(context);
     final l10n = AppLocalizations.of(context);
     final dark = app.themeMode == ThemeMode.dark;
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('settings'))),
+    return DriverPageShell(
+      title: l10n.t('settings'),
       body: ListView(
         padding: const EdgeInsets.all(AppDesign.spaceLG),
         children: [

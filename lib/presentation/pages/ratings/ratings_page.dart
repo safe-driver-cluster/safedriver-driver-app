@@ -14,19 +14,21 @@ class RatingsPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final driver = AppScope.of(context).driver!;
     final vm = DriverDashboardViewModel();
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('ratings'))),
+    return DriverPageShell(
+      title: l10n.t('ratings'),
       body: StreamBuilder(
         stream: vm.feedback(driver.id),
         builder: (context, snapshot) {
           final data = snapshot.data ?? [];
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          if (data.isEmpty)
+          }
+          if (data.isEmpty) {
             return EmptyState(
               message: l10n.t('noRatings'),
               icon: Icons.star_border_rounded,
             );
+          }
           return ListView.separated(
             padding: const EdgeInsets.all(AppDesign.spaceLG),
             itemCount: data.length,

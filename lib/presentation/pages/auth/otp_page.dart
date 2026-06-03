@@ -26,10 +26,14 @@ class _OtpPageState extends State<OtpPage> {
   late OtpStartResult _result = widget.result;
   Timer? _timer;
   int _seconds = 45;
+  bool _isVerifying = false;
 
   @override
   void initState() {
     super.initState();
+    debugPrint(
+      '[DriverOtpPage.initState] verificationId=${_result.verificationId}, phone=${_result.phoneNumber}, driverId=${_result.driver.id}',
+    );
     _startTimer();
   }
 
@@ -55,43 +59,77 @@ class _OtpPageState extends State<OtpPage> {
   }
 
   Future<void> _verify() async {
+    if (_isVerifying) {
+      debugPrint('[DriverOtpPage._verify] ignored duplicate verify');
+      return;
+    }
+
     final l10n = AppLocalizations.of(context);
+    final code = _otp.text.trim();
+    debugPrint('[DriverOtpPage._verify] pressed');
+    debugPrint(
+      '[DriverOtpPage._verify] verificationId=${_result.verificationId}',
+    );
+    debugPrint('[DriverOtpPage._verify] phone=${_result.phoneNumber}');
+    debugPrint('[DriverOtpPage._verify] otp length=${code.length}');
     if (_otp.text.trim().length < 6) {
+      debugPrint('[DriverOtpPage._verify] OTP validation failed');
       _show(l10n.t('otpRequired'));
       return;
     }
-    final driver = await _viewModel.verifyOtp(
-      verificationId: _result.verificationId,
-      smsCode: _otp.text.trim(),
-      phoneNumber: _result.phoneNumber,
-    );
-    if (!mounted) return;
-    if (driver == null) {
-      _show(l10n.t('loginFailed'));
-      return;
+    setState(() => _isVerifying = true);
+    try {
+      final driver = await _viewModel.verifyOtp(
+        verificationId: _result.verificationId,
+        smsCode: code,
+        phoneNumber: _result.phoneNumber,
+      );
+      if (!mounted) return;
+      if (driver == null) {
+        debugPrint(
+          '[DriverOtpPage._verify] failed errorCode=${_viewModel.errorCode}',
+        );
+        _show(l10n.t('loginFailed'));
+        return;
+      }
+      debugPrint(
+        '[DriverOtpPage._verify] success driverId=${driver.id}, name=${driver.fullName}',
+      );
+      AppScope.of(context).setDriver(driver);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.dashboard,
+        (_) => false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isVerifying = false);
+      }
     }
-    AppScope.of(context).setDriver(driver);
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.dashboard,
-      (_) => false,
-    );
   }
 
   Future<void> _resend() async {
     final l10n = AppLocalizations.of(context);
+    debugPrint('[DriverOtpPage._resend] pressed phone=${_result.phoneNumber}');
     final next = await _viewModel.resendOtp(_result.phoneNumber);
     if (!mounted) return;
     if (next == null) {
+      debugPrint(
+        '[DriverOtpPage._resend] failed errorCode=${_viewModel.errorCode}',
+      );
       _show(l10n.t('otpFailed'));
       return;
     }
+    debugPrint(
+      '[DriverOtpPage._resend] success verificationId=${next.verificationId}, phone=${next.phoneNumber}',
+    );
     _otp.clear();
     setState(() => _result = next);
     _startTimer();
   }
 
   void _show(String message) {
+    debugPrint('[DriverOtpPage._show] $message');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
@@ -104,8 +142,9 @@ class _OtpPageState extends State<OtpPage> {
     return AnimatedBuilder(
       animation: _viewModel,
       builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(),
+        return DriverPageShell(
+          title: l10n.t('otpTitle'),
+          subtitle: _result.phoneNumber,
           body: Padding(
             padding: const EdgeInsets.all(AppDesign.spaceXL),
             child: Column(
@@ -115,15 +154,7 @@ class _OtpPageState extends State<OtpPage> {
                 Icon(Icons.verified_user_rounded, size: 74, color: th.primary),
                 const SizedBox(height: AppDesign.spaceXL),
                 Text(
-                  l10n.t('otpTitle'),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.headline3.copyWith(
-                    color: th.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppDesign.spaceMD),
-                Text(
-                  '${l10n.t('otpSubtitle')}\n${_result.phoneNumber}',
+                  l10n.t('otpSubtitle'),
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: th.textSecondary,
@@ -148,8 +179,8 @@ class _OtpPageState extends State<OtpPage> {
                 GradientButton(
                   label: l10n.t('verifyLogin'),
                   icon: Icons.login_rounded,
-                  isLoading: _viewModel.isLoading,
-                  onPressed: _verify,
+                  isLoading: _viewModel.isLoading || _isVerifying,
+                  onPressed: _isVerifying ? null : _verify,
                 ),
                 const SizedBox(height: AppDesign.spaceLG),
                 TextButton(

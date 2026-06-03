@@ -14,6 +14,12 @@ double readDouble(dynamic value, [double fallback = 0]) {
   return fallback;
 }
 
+int readInt(dynamic value, [int fallback = 0]) {
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
 String readString(
   Map<String, dynamic> data,
   List<String> keys, [
@@ -83,7 +89,8 @@ class DriverProfile {
     return normalized == 'active' ||
         normalized == 'driving' ||
         normalized == 'onduty' ||
-        normalized == 'on_duty';
+        normalized == 'on_duty' ||
+        normalized == 'on duty';
   }
 
   factory DriverProfile.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -97,15 +104,17 @@ class DriverProfile {
     final safetyMetrics = Map<String, dynamic>.from(
       data['safetyMetrics'] as Map? ?? {},
     );
+    final fullName = readString(data, ['name', 'fullName']);
+    final nameParts = fullName.split(RegExp(r'\s+'));
     return DriverProfile(
       id: id,
-      employeeId: readString(data, [
-        'employeeId',
-        'driverId',
-        'staffId',
-      ], id),
-      firstName: readString(data, ['firstName']),
-      lastName: readString(data, ['lastName']),
+      employeeId: readString(data, ['employeeId', 'driverId', 'staffId'], id),
+      firstName: readString(data, [
+        'firstName',
+      ], nameParts.isEmpty ? '' : nameParts.first),
+      lastName: readString(data, [
+        'lastName',
+      ], nameParts.length <= 1 ? '' : nameParts.skip(1).join(' ')),
       phoneNumber: readString(data, [
         'phoneNumber',
         'phone',
@@ -127,6 +136,8 @@ class DriverProfile {
         'currentBusId',
         'busId',
         'assignedBusId',
+        'busNumber',
+        'assignedBusNumber',
       ]),
       currentRoute: readString(data, ['currentRoute', 'routeNumber', 'route']),
       safetyScore: readDouble(
@@ -141,11 +152,9 @@ class DriverProfile {
             performance['overallRating'] ??
             performance['passengerRatings'],
       ),
-      totalRatings:
-          (data['totalRatings'] ?? performance['totalRatings'] ?? 0) is num
-          ? ((data['totalRatings'] ?? performance['totalRatings']) as num)
-                .toInt()
-          : 0,
+      totalRatings: readInt(
+        data['totalRatings'] ?? performance['totalRatings'],
+      ),
       isActive: data['isActive'] != false,
       raw: data,
     );
@@ -159,6 +168,13 @@ class DriverBus {
     required this.routeNumber,
     required this.registration,
     required this.status,
+    required this.model,
+    required this.routeId,
+    required this.locationDepot,
+    required this.locationAddress,
+    required this.driverName,
+    required this.deviceId,
+    required this.year,
     required this.safetyScore,
     required this.currentSpeed,
     required this.latitude,
@@ -171,6 +187,13 @@ class DriverBus {
   final String routeNumber;
   final String registration;
   final String status;
+  final String model;
+  final String routeId;
+  final String locationDepot;
+  final String locationAddress;
+  final String driverName;
+  final String deviceId;
+  final int year;
   final double safetyScore;
   final double? currentSpeed;
   final double? latitude;
@@ -180,7 +203,7 @@ class DriverBus {
   factory DriverBus.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     final location = Map<String, dynamic>.from(
-      data['currentLocation'] as Map? ?? {},
+      (data['currentLocation'] ?? data['location']) as Map? ?? {},
     );
     return DriverBus(
       id: doc.id,
@@ -190,19 +213,32 @@ class DriverBus {
         'number',
       ], doc.id),
       routeNumber: readString(data, ['routeNumber', 'route']),
-      registration: readString(data, ['registration', 'busNumberPlate']),
+      registration: readString(data, [
+        'registration',
+        'busNumberPlate',
+        'busNumber',
+      ], doc.id),
       status: readString(data, ['status'], 'offline'),
+      model: readString(data, ['model', 'busModel']),
+      routeId: readString(data, ['routeId']),
+      locationDepot: readString(data, ['locationDepot', 'depot']),
+      locationAddress: readString(location, ['address']),
+      driverName: readString(data, ['driverName']),
+      deviceId: readString(data, ['deviceId']),
+      year: readInt(data['year']),
       safetyScore: readDouble(data['safetyScore']),
       currentSpeed: data['currentSpeed'] == null
           ? null
           : readDouble(data['currentSpeed']),
-      latitude: location['latitude'] == null
+      latitude: (location['latitude'] ?? location['lat']) == null
           ? null
-          : readDouble(location['latitude']),
-      longitude: location['longitude'] == null
+          : readDouble(location['latitude'] ?? location['lat']),
+      longitude: (location['longitude'] ?? location['lng']) == null
           ? null
-          : readDouble(location['longitude']),
-      lastUpdated: readDate(data['lastUpdated'] ?? location['timestamp']),
+          : readDouble(location['longitude'] ?? location['lng']),
+      lastUpdated: readDate(
+        data['lastUpdated'] ?? data['updatedAt'] ?? location['timestamp'],
+      ),
     );
   }
 }

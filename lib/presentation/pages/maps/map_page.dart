@@ -12,8 +12,9 @@ class MapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final driver = AppScope.of(context).driver!;
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('map'))),
+    return DriverPageShell(
+      title: l10n.t('map'),
+      subtitle: l10n.t('routeGuidance'),
       body: Padding(
         padding: const EdgeInsets.all(AppDesign.spaceLG),
         child: SoftCard(

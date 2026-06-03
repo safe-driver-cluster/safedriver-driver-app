@@ -15,10 +15,6 @@ service firebase.storage {
       return request.resource.contentType.matches('image/.*');
     }
 
-    function isValidVideoFile() {
-      return request.resource.contentType.matches('video/.*');
-    }
-
     function isValidMediaFile() {
       return request.resource.contentType.matches('(image|video)/.*') ||
              request.resource.contentType == 'application/pdf' ||
@@ -77,6 +73,19 @@ service firebase.storage {
     match /buses/{busId}/{allPaths=**} {
       allow read: if isAuthenticated();
       allow write: if false; // Only admin uploads
+    }
+
+    // Driver complaint attachments
+    match /driverComplaints/{driverId}/{complaintId}/{fileName} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == driverId;
+      allow write: if isAuthenticated() &&
+                     request.auth.token.role == 'driver' &&
+                     request.auth.token.driverId == driverId &&
+                     isValidMediaFile() &&
+                     isValidFileSize();
+      allow delete: if false;
     }
     
     // System assets - public read

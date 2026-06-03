@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -61,7 +62,7 @@ class _SplashPageState extends State<SplashPage> {
                     borderRadius: BorderRadius.circular(34),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
+                        color: Colors.black.withValues(alpha: 0.18),
                         blurRadius: 30,
                       ),
                     ],
@@ -77,7 +78,7 @@ class _SplashPageState extends State<SplashPage> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 36,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: AppFontWeights.extraBold,
                     color: Colors.white,
                   ),
                 ),
@@ -85,7 +86,7 @@ class _SplashPageState extends State<SplashPage> {
                 Text(
                   l10n.t('tagline'),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.82),
+                    color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 16,
                   ),
                 ),
@@ -101,7 +102,7 @@ class _SplashPageState extends State<SplashPage> {
                 const SizedBox(height: 28),
                 Text(
                   '${l10n.t('version')} 1.0.0',
-                  style: TextStyle(color: Colors.white.withOpacity(0.72)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
                 ),
                 const SizedBox(height: 28),
               ],

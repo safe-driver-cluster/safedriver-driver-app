@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
+export 'driver_chrome.dart';
 
 class GradientButton extends StatelessWidget {
   const GradientButton({
@@ -50,7 +52,7 @@ class GradientButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppDesign.radiusMD),
           ),
           textStyle: AppTextStyles.bodyLarge.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: AppFontWeights.extraBold,
           ),
         ),
       ),
@@ -71,7 +73,7 @@ class SoftCard extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(AppDesign.spaceLG),
       decoration: BoxDecoration(
         color: th.cardBackground,
-        borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+        borderRadius: BorderRadius.circular(AppDesign.radiusLG),
         border: Border.all(
           color: th.isDark ? Colors.white10 : const Color(0xFFE5E7EB),
         ),
