@@ -168,6 +168,13 @@ class DriverBus {
     required this.routeNumber,
     required this.registration,
     required this.status,
+    required this.model,
+    required this.routeId,
+    required this.locationDepot,
+    required this.locationAddress,
+    required this.driverName,
+    required this.deviceId,
+    required this.year,
     required this.safetyScore,
     required this.currentSpeed,
     required this.latitude,
@@ -180,6 +187,13 @@ class DriverBus {
   final String routeNumber;
   final String registration;
   final String status;
+  final String model;
+  final String routeId;
+  final String locationDepot;
+  final String locationAddress;
+  final String driverName;
+  final String deviceId;
+  final int year;
   final double safetyScore;
   final double? currentSpeed;
   final double? latitude;
@@ -189,7 +203,7 @@ class DriverBus {
   factory DriverBus.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     final location = Map<String, dynamic>.from(
-      data['currentLocation'] as Map? ?? {},
+      (data['currentLocation'] ?? data['location']) as Map? ?? {},
     );
     return DriverBus(
       id: doc.id,
@@ -199,19 +213,32 @@ class DriverBus {
         'number',
       ], doc.id),
       routeNumber: readString(data, ['routeNumber', 'route']),
-      registration: readString(data, ['registration', 'busNumberPlate']),
+      registration: readString(data, [
+        'registration',
+        'busNumberPlate',
+        'busNumber',
+      ], doc.id),
       status: readString(data, ['status'], 'offline'),
+      model: readString(data, ['model', 'busModel']),
+      routeId: readString(data, ['routeId']),
+      locationDepot: readString(data, ['locationDepot', 'depot']),
+      locationAddress: readString(location, ['address']),
+      driverName: readString(data, ['driverName']),
+      deviceId: readString(data, ['deviceId']),
+      year: readInt(data['year']),
       safetyScore: readDouble(data['safetyScore']),
       currentSpeed: data['currentSpeed'] == null
           ? null
           : readDouble(data['currentSpeed']),
-      latitude: location['latitude'] == null
+      latitude: (location['latitude'] ?? location['lat']) == null
           ? null
-          : readDouble(location['latitude']),
-      longitude: location['longitude'] == null
+          : readDouble(location['latitude'] ?? location['lat']),
+      longitude: (location['longitude'] ?? location['lng']) == null
           ? null
-          : readDouble(location['longitude']),
-      lastUpdated: readDate(data['lastUpdated'] ?? location['timestamp']),
+          : readDouble(location['longitude'] ?? location['lng']),
+      lastUpdated: readDate(
+        data['lastUpdated'] ?? data['updatedAt'] ?? location['timestamp'],
+      ),
     );
   }
 }
