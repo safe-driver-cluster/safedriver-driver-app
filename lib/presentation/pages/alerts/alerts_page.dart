@@ -49,7 +49,11 @@ class AlertsPage extends StatelessWidget {
       },
     );
     if (!showAppBar) return body;
-    return DriverPageShell(title: l10n.t('myAlerts'), body: body);
+    return DriverPageShell(
+      title: l10n.t('myAlerts'),
+      selectedNavIndex: 2,
+      body: body,
+    );
   }
 }
 
