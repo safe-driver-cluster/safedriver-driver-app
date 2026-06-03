@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -52,7 +53,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: AppFontWeights.extraBold,
                   ),
                 ),
                 const SizedBox(height: 48),
@@ -96,7 +97,9 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                     },
                     child: Text(
                       l10n.t('continueText'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontWeight: AppFontWeights.extraBold,
+                      ),
                     ),
                   ),
                 ),
@@ -135,10 +138,10 @@ class _LanguageTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(selected ? 0.22 : 0.10),
+            color: Colors.white.withValues(alpha: selected ? 0.22 : 0.10),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withOpacity(selected ? 0.85 : 0.18),
+              color: Colors.white.withValues(alpha: selected ? 0.85 : 0.18),
               width: selected ? 2 : 1,
             ),
           ),
@@ -154,13 +157,13 @@ class _LanguageTile extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: AppFontWeights.extraBold,
                       ),
                     ),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.72),
+                        color: Colors.white.withValues(alpha: 0.72),
                         fontSize: 12,
                       ),
                     ),
