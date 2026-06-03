@@ -89,7 +89,8 @@ class DriverProfile {
     return normalized == 'active' ||
         normalized == 'driving' ||
         normalized == 'onduty' ||
-        normalized == 'on_duty';
+        normalized == 'on_duty' ||
+        normalized == 'on duty';
   }
 
   factory DriverProfile.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -103,11 +104,17 @@ class DriverProfile {
     final safetyMetrics = Map<String, dynamic>.from(
       data['safetyMetrics'] as Map? ?? {},
     );
+    final fullName = readString(data, ['name', 'fullName']);
+    final nameParts = fullName.split(RegExp(r'\s+'));
     return DriverProfile(
       id: id,
       employeeId: readString(data, ['employeeId', 'driverId', 'staffId'], id),
-      firstName: readString(data, ['firstName']),
-      lastName: readString(data, ['lastName']),
+      firstName: readString(data, [
+        'firstName',
+      ], nameParts.isEmpty ? '' : nameParts.first),
+      lastName: readString(data, [
+        'lastName',
+      ], nameParts.length <= 1 ? '' : nameParts.skip(1).join(' ')),
       phoneNumber: readString(data, [
         'phoneNumber',
         'phone',
@@ -129,6 +136,8 @@ class DriverProfile {
         'currentBusId',
         'busId',
         'assignedBusId',
+        'busNumber',
+        'assignedBusNumber',
       ]),
       currentRoute: readString(data, ['currentRoute', 'routeNumber', 'route']),
       safetyScore: readDouble(
