@@ -35,11 +35,11 @@ class DriverDataService {
   }
 
   Stream<List<DriverBus>> buses(DriverProfile driver) {
-    var query = _firestore.collection('buses').limit(50);
+    var query = _firestore.collection('vehicles').limit(50);
     if (driver.currentBusId.isNotEmpty) {
       query = _firestore
-          .collection('buses')
-          .where('busNumber', isEqualTo: driver.currentBusId)
+          .collection('vehicles')
+          .where('busNumberPlate', isEqualTo: driver.currentBusId)
           .limit(10);
     }
     return query.snapshots().asyncMap((snap) async {
@@ -47,18 +47,42 @@ class DriverDataService {
         return snap.docs.map(DriverBus.fromDoc).toList();
       }
 
-      final busDoc = await _firestore
+      final vehicleDoc = await _firestore
+          .collection('vehicles')
+          .doc(driver.currentBusId)
+          .get();
+      if (vehicleDoc.exists) return [DriverBus.fromDoc(vehicleDoc)];
+
+      final vehicleNumberQuery = await _firestore
+          .collection('vehicles')
+          .where('busNumber', isEqualTo: driver.currentBusId)
+          .limit(1)
+          .get();
+      if (vehicleNumberQuery.docs.isNotEmpty) {
+        return vehicleNumberQuery.docs.map(DriverBus.fromDoc).toList();
+      }
+
+      final oldBusDoc = await _firestore
           .collection('buses')
           .doc(driver.currentBusId)
           .get();
-      if (busDoc.exists) return [DriverBus.fromDoc(busDoc)];
+      if (oldBusDoc.exists) return [DriverBus.fromDoc(oldBusDoc)];
 
-      final plateQuery = await _firestore
+      final oldBusNumberQuery = await _firestore
+          .collection('buses')
+          .where('busNumber', isEqualTo: driver.currentBusId)
+          .limit(1)
+          .get();
+      if (oldBusNumberQuery.docs.isNotEmpty) {
+        return oldBusNumberQuery.docs.map(DriverBus.fromDoc).toList();
+      }
+
+      final oldPlateQuery = await _firestore
           .collection('buses')
           .where('busNumberPlate', isEqualTo: driver.currentBusId)
           .limit(1)
           .get();
-      return plateQuery.docs.map(DriverBus.fromDoc).toList();
+      return oldPlateQuery.docs.map(DriverBus.fromDoc).toList();
     });
   }
 
