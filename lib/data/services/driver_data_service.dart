@@ -128,6 +128,26 @@ class DriverDataService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> submitSupportRequest({
+    required String driverId,
+    required String driverName,
+    required String category,
+    required String message,
+    required String priority,
+  }) {
+    return _firestore.collection('support_conversations').add({
+      'driverId': driverId,
+      'driverName': driverName,
+      'category': category,
+      'message': message,
+      'priority': priority,
+      'status': 'open',
+      'source': 'driver_app',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Query<Map<String, dynamic>> _query(String collection, String driverId) {
     return _firestore
         .collection(collection)
