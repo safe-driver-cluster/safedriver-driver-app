@@ -251,6 +251,8 @@ class DriverAlert {
     required this.priority,
     required this.status,
     required this.type,
+    required this.tag,
+    required this.numberPlate,
     required this.createdAt,
   });
 
@@ -260,19 +262,38 @@ class DriverAlert {
   final String priority;
   final String status;
   final String type;
+  final String tag;
+  final String numberPlate;
   final DateTime? createdAt;
 
   factory DriverAlert.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    final type = readString(data, ['type'], 'safety');
+    final message = readString(data, ['message', 'description']);
     return DriverAlert(
       id: doc.id,
-      title: readString(data, ['title'], 'Alert'),
-      description: readString(data, ['description', 'message']),
-      priority: readString(data, ['priority', 'severity'], 'medium'),
+      title: readString(data, ['title'], message.isEmpty ? type : message),
+      description: readString(data, [
+        'description',
+        'message',
+      ], message.isEmpty ? 'Detection event' : message),
+      priority: readString(data, ['priority', 'severity'], _priorityFor(type)),
       status: readString(data, ['status'], 'active'),
-      type: readString(data, ['type'], 'safety'),
-      createdAt: readDate(data['createdAt'] ?? data['timestamp']),
+      type: type,
+      tag: readString(data, ['tag']),
+      numberPlate: readString(data, ['number_plate', 'numberPlate', 'busNumber']),
+      createdAt: readDate(data['createdAt'] ?? data['timestamp'] ?? data['time']),
     );
+  }
+
+  static String _priorityFor(String type) {
+    final normalized = type.toLowerCase();
+    if (normalized.contains('smoking') ||
+        normalized.contains('phone') ||
+        normalized.contains('sleep')) {
+      return 'high';
+    }
+    return 'medium';
   }
 }
 
