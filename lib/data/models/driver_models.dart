@@ -14,6 +14,12 @@ double readDouble(dynamic value, [double fallback = 0]) {
   return fallback;
 }
 
+int readInt(dynamic value, [int fallback = 0]) {
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
 String readString(
   Map<String, dynamic> data,
   List<String> keys, [
@@ -99,11 +105,7 @@ class DriverProfile {
     );
     return DriverProfile(
       id: id,
-      employeeId: readString(data, [
-        'employeeId',
-        'driverId',
-        'staffId',
-      ], id),
+      employeeId: readString(data, ['employeeId', 'driverId', 'staffId'], id),
       firstName: readString(data, ['firstName']),
       lastName: readString(data, ['lastName']),
       phoneNumber: readString(data, [
@@ -141,11 +143,9 @@ class DriverProfile {
             performance['overallRating'] ??
             performance['passengerRatings'],
       ),
-      totalRatings:
-          (data['totalRatings'] ?? performance['totalRatings'] ?? 0) is num
-          ? ((data['totalRatings'] ?? performance['totalRatings']) as num)
-                .toInt()
-          : 0,
+      totalRatings: readInt(
+        data['totalRatings'] ?? performance['totalRatings'],
+      ),
       isActive: data['isActive'] != false,
       raw: data,
     );
