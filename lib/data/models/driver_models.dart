@@ -281,8 +281,14 @@ class DriverAlert {
       status: readString(data, ['status'], 'active'),
       type: type,
       tag: readString(data, ['tag']),
-      numberPlate: readString(data, ['number_plate', 'numberPlate', 'busNumber']),
-      createdAt: readDate(data['createdAt'] ?? data['timestamp'] ?? data['time']),
+      numberPlate: readString(data, [
+        'number_plate',
+        'numberPlate',
+        'busNumber',
+      ]),
+      createdAt: readDate(
+        data['createdAt'] ?? data['timestamp'] ?? data['time'],
+      ),
     );
   }
 
