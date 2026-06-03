@@ -111,7 +111,11 @@ class ProfilePage extends StatelessWidget {
       ],
     );
     if (!showAppBar) return body;
-    return DriverPageShell(title: l10n.t('profile'), body: body);
+    return DriverPageShell(
+      title: l10n.t('profile'),
+      selectedNavIndex: 3,
+      body: body,
+    );
   }
 }
 
