@@ -4,6 +4,8 @@ import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../state/app_controller.dart';
 
 class DriverBackButton extends StatelessWidget {
   const DriverBackButton({super.key, this.onPressed, this.foreground});
@@ -14,15 +16,55 @@ class DriverBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = foreground ?? Colors.white;
-    return IconButton(
+    return _HeaderActionSurface(
       tooltip: MaterialLocalizations.of(context).backButtonTooltip,
       onPressed: onPressed ?? () => Navigator.maybePop(context),
-      icon: const Icon(Icons.arrow_back_rounded),
-      color: color,
-      style: IconButton.styleFrom(
-        backgroundColor: color.withValues(alpha: 0.16),
-        fixedSize: const Size.square(44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Icon(Icons.arrow_back_rounded, color: color, size: 22),
+    );
+  }
+}
+
+class _HeaderActionSurface extends StatelessWidget {
+  const _HeaderActionSurface({
+    required this.tooltip,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.22),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.16),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(child: child),
+          ),
+        ),
       ),
     );
   }
@@ -42,16 +84,10 @@ class DriverIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    return _HeaderActionSurface(
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: Icon(icon),
-      color: Colors.white,
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: 0.16),
-        fixedSize: const Size.square(44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
+      child: Icon(icon, color: Colors.white, size: 23),
     );
   }
 }
@@ -72,66 +108,104 @@ class DriverGradientAppBar extends StatelessWidget
   final bool showBack;
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle == null ? 100 : 116);
+  Size get preferredSize => Size.fromHeight(subtitle == null ? 96 : 108);
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      automaticallyImplyLeading: false,
-      toolbarHeight: preferredSize.height,
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(gradient: AppColors.heroGradient),
-      ),
-      titleSpacing: 0,
-      title: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 6, 18, 14),
-          child: Row(
-            children: [
-              if (showBack) ...[
-                const DriverBackButton(),
-                const SizedBox(width: 12),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+    final topPadding = MediaQuery.paddingOf(context).top;
+    return Material(
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+            ),
+            Positioned(
+              right: -46,
+              top: -62,
+              child: Container(
+                width: 170,
+                height: 170,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.14),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 18,
+              bottom: -42,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.infoColor.withValues(alpha: 0.14),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: topPadding,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                child: Row(
                   children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.headline3.copyWith(
-                        color: Colors.white,
-                        fontWeight: AppFontWeights.extraBold,
+                    if (showBack) ...[
+                      const DriverBackButton(),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.headline3.copyWith(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: AppFontWeights.extraBold,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.white.withValues(alpha: 0.84),
+                                fontWeight: AppFontWeights.medium,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withValues(alpha: 0.82),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      ...actions.map(
+                        (action) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: action,
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              if (actions.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                ...actions.map(
-                  (action) => Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: action,
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -234,6 +308,7 @@ class DriverPageShell extends StatelessWidget {
     this.actions = const [],
     this.showBack = true,
     this.bottomNavigationBar,
+    this.selectedNavIndex = 0,
   });
 
   final String title;
@@ -242,9 +317,27 @@ class DriverPageShell extends StatelessWidget {
   final List<Widget> actions;
   final bool showBack;
   final Widget? bottomNavigationBar;
+  final int selectedNavIndex;
 
   @override
   Widget build(BuildContext context) {
+    final driver = AppScope.of(context).driver;
+    final navBar =
+        bottomNavigationBar ??
+        (driver == null
+            ? null
+            : DriverBottomNavBar(
+                selectedIndex: selectedNavIndex.clamp(0, 3).toInt(),
+                onSelected: (value) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/dashboard',
+                    (_) => false,
+                    arguments: value,
+                  );
+                },
+                items: _driverNavItems(context),
+              ));
     return Scaffold(
       appBar: DriverGradientAppBar(
         title: title,
@@ -253,7 +346,23 @@ class DriverPageShell extends StatelessWidget {
         showBack: showBack,
       ),
       body: body,
-      bottomNavigationBar: bottomNavigationBar,
+      bottomNavigationBar: navBar,
     );
+  }
+
+  List<DriverNavItem> _driverNavItems(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return [
+      DriverNavItem(icon: Icons.dashboard_rounded, label: l10n.t('dashboard')),
+      DriverNavItem(
+        icon: Icons.directions_bus_rounded,
+        label: l10n.t('myBuses'),
+      ),
+      DriverNavItem(
+        icon: Icons.notifications_rounded,
+        label: l10n.t('myAlerts'),
+      ),
+      DriverNavItem(icon: Icons.person_rounded, label: l10n.t('profile')),
+    ];
   }
 }
