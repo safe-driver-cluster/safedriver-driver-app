@@ -44,6 +44,19 @@ service cloud.firestore {
     match /otp_verifications/{verificationId} {
       allow read, write: if false; // Only Cloud Functions can access
     }
+
+    // Drivers can read their own driver profile after custom-token login.
+    match /drivers/{driverId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == driverId;
+      allow update: if isAuthenticated() &&
+                      request.auth.token.role == 'driver' &&
+                      request.auth.token.driverId == driverId &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['profileImageUrl', 'updatedAt']);
+      allow create, delete: if false;
+    }
     
     // Feedback collection - users can create, read own feedback, and admins manage
     match /feedback/{feedbackId} {
