@@ -57,9 +57,49 @@ service cloud.firestore {
                         .hasOnly(['profileImageUrl', 'updatedAt']);
       allow create, delete: if false;
     }
+
+    // Driver app collections - drivers can only access records assigned to them.
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driverId;
+      allow write: if false;
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driverId;
+      allow write: if false;
+    }
+
+    match /driverComplaints/{complaintId} {
+      allow create: if isAuthenticated() &&
+                      request.auth.token.role == 'driver' &&
+                      request.auth.token.driverId == request.resource.data.driverId &&
+                      request.resource.data.keys().hasOnly([
+                        'driverId',
+                        'title',
+                        'message',
+                        'status',
+                        'createdAt',
+                        'mediaUrl',
+                        'mediaPath',
+                        'mediaType',
+                        'mediaName'
+                      ]) &&
+                      request.resource.data.status == 'open';
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driverId;
+      allow update, delete: if false;
+    }
     
     // Feedback collection - users can create, read own feedback, and admins manage
     match /feedback/{feedbackId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driverId;
       allow create: if isAuthenticated() && 
                        'userId' in request.resource.data &&
                        request.resource.data.userId == request.auth.uid &&
