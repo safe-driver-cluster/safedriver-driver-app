@@ -147,6 +147,12 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+
+    // Vehicles collection - driver app reads assigned vehicle details.
+    match /vehicles/{vehicleId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only admin/system writes
+    }
     
     // Routes collection - public read access
     match /routes/{routeId} {
