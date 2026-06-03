@@ -31,6 +31,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
     'Bus issue',
     'Route issue',
     'Safety issue',
+    'Wrong alerts',
     'App issue',
     'Other',
   ];
