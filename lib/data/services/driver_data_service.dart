@@ -42,9 +42,24 @@ class DriverDataService {
           .where('busNumber', isEqualTo: driver.currentBusId)
           .limit(10);
     }
-    return query.snapshots().map(
-      (snap) => snap.docs.map(DriverBus.fromDoc).toList(),
-    );
+    return query.snapshots().asyncMap((snap) async {
+      if (snap.docs.isNotEmpty || driver.currentBusId.isEmpty) {
+        return snap.docs.map(DriverBus.fromDoc).toList();
+      }
+
+      final busDoc = await _firestore
+          .collection('buses')
+          .doc(driver.currentBusId)
+          .get();
+      if (busDoc.exists) return [DriverBus.fromDoc(busDoc)];
+
+      final plateQuery = await _firestore
+          .collection('buses')
+          .where('busNumberPlate', isEqualTo: driver.currentBusId)
+          .limit(1)
+          .get();
+      return plateQuery.docs.map(DriverBus.fromDoc).toList();
+    });
   }
 
   Future<void> submitComplaint({
