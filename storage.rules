@@ -78,6 +78,19 @@ service firebase.storage {
       allow read: if isAuthenticated();
       allow write: if false; // Only admin uploads
     }
+
+    // Driver complaint attachments
+    match /driverComplaints/{driverId}/{complaintId}/{fileName} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == driverId;
+      allow write: if isAuthenticated() &&
+                     request.auth.token.role == 'driver' &&
+                     request.auth.token.driverId == driverId &&
+                     isValidMediaFile() &&
+                     isValidFileSize();
+      allow delete: if false;
+    }
     
     // System assets - public read
     match /system/{allPaths=**} {
