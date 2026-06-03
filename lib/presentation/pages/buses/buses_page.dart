@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../data/models/driver_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
@@ -183,7 +184,7 @@ class BusesPage extends StatelessWidget {
 
   String _routeLabel(DriverBus bus, String driverRoute) {
     if (bus.routeNumber.isNotEmpty && bus.routeId.isNotEmpty) {
-      return '${bus.routeNumber} • ${bus.routeId}';
+      return '${bus.routeNumber} - ${bus.routeId}';
     }
     if (bus.routeNumber.isNotEmpty) return bus.routeNumber;
     if (driverRoute.isNotEmpty) return driverRoute;
@@ -237,9 +238,9 @@ class _DetailChip extends StatelessWidget {
       width: 154,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceColor,
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(color: AppColors.cardTint),
       ),
       child: Row(
         children: [
@@ -263,7 +264,7 @@ class _DetailChip extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: AppFontWeights.bold,
                   ),
                 ),
