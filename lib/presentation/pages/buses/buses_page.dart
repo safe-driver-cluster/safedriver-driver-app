@@ -179,7 +179,11 @@ class BusesPage extends StatelessWidget {
       },
     );
     if (!showAppBar) return body;
-    return DriverPageShell(title: l10n.t('myBuses'), body: body);
+    return DriverPageShell(
+      title: l10n.t('myBuses'),
+      selectedNavIndex: 1,
+      body: body,
+    );
   }
 
   String _routeLabel(DriverBus bus, String driverRoute) {
