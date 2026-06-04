@@ -29,9 +29,16 @@ class DriverDataService {
     final alertsByPath = <String, DriverAlert>{};
     final subscriptions =
         <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    final pendingInitialSources = <String>{};
     var started = false;
 
     void emit() {
+      if (pendingInitialSources.isNotEmpty) {
+        debugPrint(
+          '[DriverDataService.alerts.emit] waitingFor=${pendingInitialSources.length}',
+        );
+        return;
+      }
       final alerts = alertsByPath.values.toList()
         ..sort((a, b) {
           final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -46,6 +53,7 @@ class DriverDataService {
 
     void listenTo(String key, Query<Map<String, dynamic>> query) {
       debugPrint('[DriverDataService.alerts.listen] source=$key');
+      pendingInitialSources.add(key);
       final subscription = query.snapshots().listen(
         (snap) {
           debugPrint(
@@ -64,12 +72,14 @@ class DriverDataService {
             alertsByPath[docKey] = DriverAlert.fromDoc(doc);
           }
           sourceKeys[key] = nextKeys;
+          pendingInitialSources.remove(key);
           emit();
         },
         onError: (Object error, StackTrace stackTrace) {
           debugPrint(
             '[DriverDataService.alerts.error] source=$key error=$error',
           );
+          pendingInitialSources.remove(key);
           emit();
         },
       );
@@ -83,23 +93,22 @@ class DriverDataService {
         '[DriverDataService.alerts.start] driver=$driverId bus=${driver.currentBusId}',
       );
 
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final dateKeys = List.generate(16, (index) {
+        final date = tomorrow.subtract(Duration(days: index));
+        return _dateKey(date);
+      });
+      final deviceIds = await _alertDeviceIdsFor(driver);
+      debugPrint(
+        '[DriverDataService.alerts.devices] driver=$driverId devices=$deviceIds dates=$dateKeys',
+      );
+
       listenTo(
         'flat_driverId',
         _firestore
             .collection('alerts')
             .where('driverId', isEqualTo: driverId)
             .limit(50),
-      );
-
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final dateKeys = List.generate(16, (index) {
-        final date = tomorrow.subtract(Duration(days: index));
-        return _dateKey(date);
-      });
-
-      final deviceIds = await _alertDeviceIdsFor(driver);
-      debugPrint(
-        '[DriverDataService.alerts.devices] driver=$driverId devices=$deviceIds dates=$dateKeys',
       );
 
       for (final deviceId in deviceIds) {
