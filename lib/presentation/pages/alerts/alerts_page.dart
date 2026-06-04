@@ -25,8 +25,8 @@ class _AlertsPageState extends State<AlertsPage> {
   String? _streamDriverId;
   int _refreshKey = 0;
   String _selectedType = 'all';
-  DateTimeRange? _dateRange;
-  String _dateFilter = 'all';
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   @override
   void didChangeDependencies() {
@@ -92,7 +92,7 @@ class _AlertsPageState extends State<AlertsPage> {
         final types = _typesFor(data);
         final filtered = _filteredAlerts(data);
         debugPrint(
-          '[AlertsPage.filtered] type=$_selectedType date=$_dateFilter range=${_dateRange?.start}..${_dateRange?.end} count=${filtered.length}',
+          '[AlertsPage.filtered] type=$_selectedType from=$_fromDate to=$_toDate count=${filtered.length}',
         );
 
         return RefreshIndicator(
@@ -105,10 +105,11 @@ class _AlertsPageState extends State<AlertsPage> {
                 delegate: _AlertControlsHeader(
                   types: types,
                   selectedType: _selectedType,
-                  dateFilter: _dateFilter,
-                  dateRange: _dateRange,
-                  onDateFilterSelected: _selectDateFilter,
-                  onCustomDateRange: _pickDateRange,
+                  fromDate: _fromDate,
+                  toDate: _toDate,
+                  onPickFromDate: _pickFromDate,
+                  onPickToDate: _pickToDate,
+                  onClearDates: _clearDateRange,
                   onTypeSelected: (value) {
                     debugPrint(
                       '[AlertsPage.filter] type=$value local filter only',
@@ -168,51 +169,55 @@ class _AlertsPageState extends State<AlertsPage> {
     return alerts.where((alert) {
       final typeMatches =
           _selectedType == 'all' || alert.type.toLowerCase() == _selectedType;
-      final dateMatches = _dateRange == null || _isWithinRange(alert.createdAt);
+      final dateMatches = _isWithinRange(alert.createdAt);
       return typeMatches && dateMatches;
     }).toList();
   }
 
   bool _isWithinRange(DateTime? value) {
-    if (value == null || _dateRange == null) return false;
+    if (_fromDate == null && _toDate == null) return true;
+    if (value == null) return false;
     final date = DateUtils.dateOnly(value);
-    final start = DateUtils.dateOnly(_dateRange!.start);
-    final end = DateUtils.dateOnly(_dateRange!.end);
-    return !date.isBefore(start) && !date.isAfter(end);
+    final from = _fromDate == null ? null : DateUtils.dateOnly(_fromDate!);
+    final to = _toDate == null ? null : DateUtils.dateOnly(_toDate!);
+    if (from != null && date.isBefore(from)) return false;
+    if (to != null && date.isAfter(to)) return false;
+    return true;
   }
 
-  void _selectDateFilter(String value) {
+  Future<void> _pickFromDate() async {
     final now = DateTime.now();
-    DateTimeRange? range;
-    if (value == 'today') {
-      range = DateTimeRange(start: now, end: now);
-    } else if (value == '7d') {
-      range = DateTimeRange(
-        start: now.subtract(const Duration(days: 6)),
-        end: now,
-      );
-    } else if (value == '30d') {
-      range = DateTimeRange(
-        start: now.subtract(const Duration(days: 29)),
-        end: now,
-      );
-    }
-    debugPrint('[AlertsPage.dateFilter] value=$value local filter only');
-    setState(() {
-      _dateFilter = value;
-      _dateRange = range;
-    });
+    final picked = await _pickDate(
+      initialDate: _fromDate ?? _toDate ?? now,
+      lastDate: _toDate ?? now.add(const Duration(days: 1)),
+    );
+    if (picked == null) return;
+    debugPrint('[AlertsPage.dateFilter] from=$picked local filter only');
+    setState(() => _fromDate = picked);
   }
 
-  Future<void> _pickDateRange() async {
+  Future<void> _pickToDate() async {
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final picked = await _pickDate(
+      initialDate: _toDate ?? _fromDate ?? now,
+      firstDate: _fromDate ?? now.subtract(const Duration(days: 365)),
+    );
+    if (picked == null) return;
+    debugPrint('[AlertsPage.dateFilter] to=$picked local filter only');
+    setState(() => _toDate = picked);
+  }
+
+  Future<DateTime?> _pickDate({
+    required DateTime initialDate,
+    DateTime? firstDate,
+    DateTime? lastDate,
+  }) {
+    final now = DateTime.now();
+    return showDatePicker(
       context: context,
-      firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 1)),
-      initialDateRange:
-          _dateRange ??
-          DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+      firstDate: firstDate ?? now.subtract(const Duration(days: 365)),
+      lastDate: lastDate ?? now.add(const Duration(days: 1)),
+      initialDate: initialDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -224,13 +229,13 @@ class _AlertsPageState extends State<AlertsPage> {
         );
       },
     );
-    if (picked == null) return;
-    debugPrint(
-      '[AlertsPage.dateFilter] custom ${picked.start}..${picked.end} local filter only',
-    );
+  }
+
+  void _clearDateRange() {
+    debugPrint('[AlertsPage.dateFilter] cleared local filter only');
     setState(() {
-      _dateFilter = 'custom';
-      _dateRange = picked;
+      _fromDate = null;
+      _toDate = null;
     });
   }
 }
