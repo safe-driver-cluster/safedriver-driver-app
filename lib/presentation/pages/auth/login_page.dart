@@ -8,6 +8,7 @@ import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../viewmodels/auth_view_model.dart';
+import '../../widgets/common/auth_error_message.dart';
 import '../../widgets/common/country_code_picker.dart';
 import '../../widgets/common/professional_widgets.dart';
 
@@ -23,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   final _phone = TextEditingController();
   final _viewModel = AuthViewModel();
   String _selectedCountryCode = '+94';
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -43,6 +45,7 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('[DriverLoginPage._sendOtp] form validation failed');
       return;
     }
+    setState(() => _errorMessage = null);
     HapticFeedback.lightImpact();
     final result = await _viewModel.startOtpLogin(_fullPhoneNumber);
     if (!mounted) return;
@@ -50,11 +53,12 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint(
         '[DriverLoginPage._sendOtp] failed errorCode=${_viewModel.errorCode}',
       );
-      _showSnack(
-        _viewModel.errorCode == 'driver_not_found'
-            ? l10n.t('driverNotFound')
-            : l10n.t('otpFailed'),
+      final message = l10n.authErrorMessage(
+        _viewModel.errorCode,
+        fallbackKey: 'otpFailed',
       );
+      setState(() => _errorMessage = message);
+      _showSnack(message);
       return;
     }
     debugPrint(
@@ -164,8 +168,10 @@ class _LoginPageState extends State<LoginPage> {
                               PhoneNumberField(
                                 controller: _phone,
                                 selectedCountryCode: _selectedCountryCode,
-                                onCountryCodeChanged: (code) =>
-                                    setState(() => _selectedCountryCode = code),
+                                onCountryCodeChanged: (code) => setState(() {
+                                  _selectedCountryCode = code;
+                                  _errorMessage = null;
+                                }),
                                 labelText: l10n.t('phoneNumber'),
                                 validator: (value) {
                                   if (value == null ||
@@ -174,7 +180,16 @@ class _LoginPageState extends State<LoginPage> {
                                   }
                                   return null;
                                 },
+                                onChanged: (_) {
+                                  if (_errorMessage != null) {
+                                    setState(() => _errorMessage = null);
+                                  }
+                                },
                               ),
+                              if (_errorMessage != null) ...[
+                                const SizedBox(height: AppDesign.spaceLG),
+                                AuthErrorMessage(message: _errorMessage!),
+                              ],
                               const SizedBox(height: AppDesign.space2XL),
                               GradientButton(
                                 label: l10n.t('sendOtp'),

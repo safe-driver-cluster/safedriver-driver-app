@@ -9,6 +9,7 @@ import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/auth_view_model.dart';
+import '../../widgets/common/auth_error_message.dart';
 import '../../widgets/common/professional_widgets.dart';
 
 class OtpPage extends StatefulWidget {
@@ -27,6 +28,7 @@ class _OtpPageState extends State<OtpPage> {
   Timer? _timer;
   int _seconds = 45;
   bool _isVerifying = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -74,10 +76,15 @@ class _OtpPageState extends State<OtpPage> {
     debugPrint('[DriverOtpPage._verify] otp length=${code.length}');
     if (_otp.text.trim().length < 6) {
       debugPrint('[DriverOtpPage._verify] OTP validation failed');
-      _show(l10n.t('otpRequired'));
+      final message = l10n.t('otpRequired');
+      setState(() => _errorMessage = message);
+      _show(message);
       return;
     }
-    setState(() => _isVerifying = true);
+    setState(() {
+      _errorMessage = null;
+      _isVerifying = true;
+    });
     try {
       final driver = await _viewModel.verifyOtp(
         verificationId: _result.verificationId,
@@ -89,7 +96,9 @@ class _OtpPageState extends State<OtpPage> {
         debugPrint(
           '[DriverOtpPage._verify] failed errorCode=${_viewModel.errorCode}',
         );
-        _show(l10n.t('loginFailed'));
+        final message = l10n.authErrorMessage(_viewModel.errorCode);
+        setState(() => _errorMessage = message);
+        _show(message);
         return;
       }
       debugPrint(
@@ -117,14 +126,22 @@ class _OtpPageState extends State<OtpPage> {
       debugPrint(
         '[DriverOtpPage._resend] failed errorCode=${_viewModel.errorCode}',
       );
-      _show(l10n.t('otpFailed'));
+      final message = l10n.authErrorMessage(
+        _viewModel.errorCode,
+        fallbackKey: 'otpFailed',
+      );
+      setState(() => _errorMessage = message);
+      _show(message);
       return;
     }
     debugPrint(
       '[DriverOtpPage._resend] success verificationId=${next.verificationId}, phone=${next.phoneNumber}',
     );
     _otp.clear();
-    setState(() => _result = next);
+    setState(() {
+      _errorMessage = null;
+      _result = next;
+    });
     _startTimer();
   }
 
@@ -174,7 +191,16 @@ class _OtpPageState extends State<OtpPage> {
                     labelText: l10n.t('otpCode'),
                     counterText: '',
                   ),
+                  onChanged: (_) {
+                    if (_errorMessage != null) {
+                      setState(() => _errorMessage = null);
+                    }
+                  },
                 ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: AppDesign.spaceLG),
+                  AuthErrorMessage(message: _errorMessage!),
+                ],
                 const SizedBox(height: AppDesign.space2XL),
                 GradientButton(
                   label: l10n.t('verifyLogin'),
