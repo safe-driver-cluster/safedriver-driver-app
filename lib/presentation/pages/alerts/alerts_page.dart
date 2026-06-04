@@ -10,6 +10,8 @@ import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
 import '../../widgets/common/professional_widgets.dart';
 
+const _defaultAlertTypes = ['safety', 'smoking', 'phone', 'sleep'];
+
 class AlertsPage extends StatefulWidget {
   const AlertsPage({super.key, this.showAppBar = true});
 
@@ -25,8 +27,8 @@ class _AlertsPageState extends State<AlertsPage> {
   String? _streamDriverId;
   int _refreshKey = 0;
   String _selectedType = 'all';
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  String _dateFilter = 'all';
+  DateTimeRange? _customDateRange;
 
   @override
   void didChangeDependencies() {
@@ -92,7 +94,7 @@ class _AlertsPageState extends State<AlertsPage> {
         final types = _typesFor(data);
         final filtered = _filteredAlerts(data);
         debugPrint(
-          '[AlertsPage.filtered] type=$_selectedType from=$_fromDate to=$_toDate count=${filtered.length}',
+          '[AlertsPage.filtered] type=$_selectedType dateFilter=$_dateFilter range=$_customDateRange count=${filtered.length}',
         );
 
         return RefreshIndicator(
@@ -105,11 +107,10 @@ class _AlertsPageState extends State<AlertsPage> {
                 delegate: _AlertControlsHeader(
                   types: types,
                   selectedType: _selectedType,
-                  fromDate: _fromDate,
-                  toDate: _toDate,
-                  onPickFromDate: _pickFromDate,
-                  onPickToDate: _pickToDate,
-                  onClearDates: _clearDateRange,
+                  dateFilter: _dateFilter,
+                  dateRange: _customDateRange,
+                  onDateFilterSelected: _selectDateFilter,
+                  onCustomDateRange: _pickCustomDateRange,
                   onTypeSelected: (value) {
                     debugPrint(
                       '[AlertsPage.filter] type=$value local filter only',
@@ -155,13 +156,13 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 
   List<String> _typesFor(List<DriverAlert> alerts) {
-    final types =
-        alerts
-            .map((alert) => alert.type.trim().toLowerCase())
-            .where((type) => type.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
+    final liveTypes = alerts
+        .map((alert) => alert.type.trim().toLowerCase())
+        .where((type) => type.isNotEmpty)
+        .toSet();
+    final extraTypes = liveTypes.difference(_defaultAlertTypes.toSet()).toList()
+      ..sort();
+    final types = [..._defaultAlertTypes, ...extraTypes];
     return ['all', ...types];
   }
 
@@ -175,49 +176,60 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 
   bool _isWithinRange(DateTime? value) {
-    if (_fromDate == null && _toDate == null) return true;
+    final range = _activeDateRange();
+    if (range == null) return true;
     if (value == null) return false;
     final date = DateUtils.dateOnly(value);
-    final from = _fromDate == null ? null : DateUtils.dateOnly(_fromDate!);
-    final to = _toDate == null ? null : DateUtils.dateOnly(_toDate!);
-    if (from != null && date.isBefore(from)) return false;
-    if (to != null && date.isAfter(to)) return false;
+    final from = DateUtils.dateOnly(range.start);
+    final to = DateUtils.dateOnly(range.end);
+    if (date.isBefore(from)) return false;
+    if (date.isAfter(to)) return false;
     return true;
   }
 
-  Future<void> _pickFromDate() async {
+  DateTimeRange? _activeDateRange() {
     final now = DateTime.now();
-    final picked = await _pickDate(
-      initialDate: _fromDate ?? _toDate ?? now,
-      lastDate: _toDate ?? now.add(const Duration(days: 1)),
-    );
-    if (picked == null) return;
-    debugPrint('[AlertsPage.dateFilter] from=$picked local filter only');
-    setState(() => _fromDate = picked);
+    final today = DateUtils.dateOnly(now);
+    switch (_dateFilter) {
+      case 'today':
+        return DateTimeRange(start: today, end: today);
+      case '7d':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 6)),
+          end: today,
+        );
+      case '30d':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 29)),
+          end: today,
+        );
+      case 'custom':
+        return _customDateRange;
+      default:
+        return null;
+    }
   }
 
-  Future<void> _pickToDate() async {
-    final now = DateTime.now();
-    final picked = await _pickDate(
-      initialDate: _toDate ?? _fromDate ?? now,
-      firstDate: _fromDate ?? now.subtract(const Duration(days: 365)),
-    );
-    if (picked == null) return;
-    debugPrint('[AlertsPage.dateFilter] to=$picked local filter only');
-    setState(() => _toDate = picked);
+  void _selectDateFilter(String value) {
+    debugPrint('[AlertsPage.dateFilter] selected=$value local filter only');
+    setState(() {
+      _dateFilter = value;
+      if (value != 'custom') _customDateRange = null;
+    });
   }
 
-  Future<DateTime?> _pickDate({
-    required DateTime initialDate,
-    DateTime? firstDate,
-    DateTime? lastDate,
-  }) {
+  Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
-    return showDatePicker(
+    final picked = await showDateRangePicker(
       context: context,
-      firstDate: firstDate ?? now.subtract(const Duration(days: 365)),
-      lastDate: lastDate ?? now.add(const Duration(days: 1)),
-      initialDate: initialDate,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 1)),
+      initialDateRange:
+          _customDateRange ??
+          DateTimeRange(
+            start: DateUtils.dateOnly(now.subtract(const Duration(days: 6))),
+            end: DateUtils.dateOnly(now),
+          ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -229,13 +241,11 @@ class _AlertsPageState extends State<AlertsPage> {
         );
       },
     );
-  }
-
-  void _clearDateRange() {
-    debugPrint('[AlertsPage.dateFilter] cleared local filter only');
+    if (picked == null) return;
+    debugPrint('[AlertsPage.dateFilter] custom=$picked local filter only');
     setState(() {
-      _fromDate = null;
-      _toDate = null;
+      _dateFilter = 'custom';
+      _customDateRange = picked;
     });
   }
 }
