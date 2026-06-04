@@ -21,7 +21,14 @@ class AttendancePage extends StatelessWidget {
         stream: vm.attendance(driver.id),
         builder: (context, snapshot) {
           final data = snapshot.data ?? [];
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.hasError) {
+            return const EmptyState(
+              message: 'Could not load attendance.',
+              icon: Icons.error_outline_rounded,
+            );
+          }
+          if (snapshot.connectionState == ConnectionState.waiting ||
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (data.isEmpty) {

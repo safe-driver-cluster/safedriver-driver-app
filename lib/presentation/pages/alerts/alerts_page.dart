@@ -10,6 +10,8 @@ import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
 import '../../widgets/common/professional_widgets.dart';
 
+const _defaultAlertTypes = ['safety', 'smoking', 'phone', 'sleep'];
+
 class AlertsPage extends StatefulWidget {
   const AlertsPage({super.key, this.showAppBar = true});
 
@@ -25,8 +27,8 @@ class _AlertsPageState extends State<AlertsPage> {
   String? _streamDriverId;
   int _refreshKey = 0;
   String _selectedType = 'all';
-  DateTimeRange? _dateRange;
   String _dateFilter = 'all';
+  DateTimeRange? _customDateRange;
 
   @override
   void didChangeDependencies() {
@@ -85,14 +87,15 @@ class _AlertsPageState extends State<AlertsPage> {
             ),
           );
         }
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final types = _typesFor(data);
         final filtered = _filteredAlerts(data);
         debugPrint(
-          '[AlertsPage.filtered] type=$_selectedType date=$_dateFilter range=${_dateRange?.start}..${_dateRange?.end} count=${filtered.length}',
+          '[AlertsPage.filtered] type=$_selectedType dateFilter=$_dateFilter range=$_customDateRange count=${filtered.length}',
         );
 
         return RefreshIndicator(
@@ -106,9 +109,9 @@ class _AlertsPageState extends State<AlertsPage> {
                   types: types,
                   selectedType: _selectedType,
                   dateFilter: _dateFilter,
-                  dateRange: _dateRange,
+                  dateRange: _customDateRange,
                   onDateFilterSelected: _selectDateFilter,
-                  onCustomDateRange: _pickDateRange,
+                  onCustomDateRange: _pickCustomDateRange,
                   onTypeSelected: (value) {
                     debugPrint(
                       '[AlertsPage.filter] type=$value local filter only',
@@ -154,13 +157,13 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 
   List<String> _typesFor(List<DriverAlert> alerts) {
-    final types =
-        alerts
-            .map((alert) => alert.type.trim().toLowerCase())
-            .where((type) => type.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
+    final liveTypes = alerts
+        .map((alert) => alert.type.trim().toLowerCase())
+        .where((type) => type.isNotEmpty)
+        .toSet();
+    final extraTypes = liveTypes.difference(_defaultAlertTypes.toSet()).toList()
+      ..sort();
+    final types = [..._defaultAlertTypes, ...extraTypes];
     return ['all', ...types];
   }
 
@@ -168,69 +171,82 @@ class _AlertsPageState extends State<AlertsPage> {
     return alerts.where((alert) {
       final typeMatches =
           _selectedType == 'all' || alert.type.toLowerCase() == _selectedType;
-      final dateMatches = _dateRange == null || _isWithinRange(alert.createdAt);
+      final dateMatches = _isWithinRange(alert.createdAt);
       return typeMatches && dateMatches;
     }).toList();
   }
 
   bool _isWithinRange(DateTime? value) {
-    if (value == null || _dateRange == null) return false;
+    final range = _activeDateRange();
+    if (range == null) return true;
+    if (value == null) return false;
     final date = DateUtils.dateOnly(value);
-    final start = DateUtils.dateOnly(_dateRange!.start);
-    final end = DateUtils.dateOnly(_dateRange!.end);
-    return !date.isBefore(start) && !date.isAfter(end);
+    final from = DateUtils.dateOnly(range.start);
+    final to = DateUtils.dateOnly(range.end);
+    if (date.isBefore(from)) return false;
+    if (date.isAfter(to)) return false;
+    return true;
+  }
+
+  DateTimeRange? _activeDateRange() {
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    switch (_dateFilter) {
+      case 'today':
+        return DateTimeRange(start: today, end: today);
+      case '7d':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 6)),
+          end: today,
+        );
+      case '30d':
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 29)),
+          end: today,
+        );
+      case 'custom':
+        return _customDateRange;
+      default:
+        return null;
+    }
   }
 
   void _selectDateFilter(String value) {
-    final now = DateTime.now();
-    DateTimeRange? range;
-    if (value == 'today') {
-      range = DateTimeRange(start: now, end: now);
-    } else if (value == '7d') {
-      range = DateTimeRange(
-        start: now.subtract(const Duration(days: 6)),
-        end: now,
-      );
-    } else if (value == '30d') {
-      range = DateTimeRange(
-        start: now.subtract(const Duration(days: 29)),
-        end: now,
-      );
-    }
-    debugPrint('[AlertsPage.dateFilter] value=$value local filter only');
+    debugPrint('[AlertsPage.dateFilter] selected=$value local filter only');
     setState(() {
       _dateFilter = value;
-      _dateRange = range;
+      if (value != 'custom') _customDateRange = null;
     });
   }
 
-  Future<void> _pickDateRange() async {
+  Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now.add(const Duration(days: 1)),
       initialDateRange:
-          _dateRange ??
-          DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+          _customDateRange ??
+          DateTimeRange(
+            start: DateUtils.dateOnly(now.subtract(const Duration(days: 6))),
+            end: DateUtils.dateOnly(now),
+          ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primaryColor,
-            ),
-          );
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppColors.primaryColor),
+          ),
           child: child!,
         );
       },
     );
     if (picked == null) return;
-    debugPrint(
-      '[AlertsPage.dateFilter] custom ${picked.start}..${picked.end} local filter only',
-    );
+    debugPrint('[AlertsPage.dateFilter] custom=$picked local filter only');
     setState(() {
       _dateFilter = 'custom';
-      _dateRange = picked;
+      _customDateRange = picked;
     });
   }
 }
@@ -386,7 +402,7 @@ class _AlertDateFilterChips extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          );
         }).toList(),
       ),
     );
