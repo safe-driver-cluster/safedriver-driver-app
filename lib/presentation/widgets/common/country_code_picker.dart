@@ -8,6 +8,7 @@ class PhoneNumberField extends StatelessWidget {
     required this.onCountryCodeChanged,
     required this.labelText,
     this.validator,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -15,6 +16,7 @@ class PhoneNumberField extends StatelessWidget {
   final ValueChanged<String> onCountryCodeChanged;
   final String labelText;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,7 @@ class PhoneNumberField extends StatelessWidget {
             controller: controller,
             keyboardType: TextInputType.phone,
             validator: validator,
+            onChanged: onChanged,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.phone_iphone_rounded),
               labelText: labelText,
