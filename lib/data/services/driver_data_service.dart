@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -21,11 +22,14 @@ class DriverDataService {
     );
   }
 
-  Stream<List<DriverAlert>> alerts(String driverId) {
+  Stream<List<DriverAlert>> alerts(DriverProfile driver) {
+    final driverId = driver.id;
     final controller = StreamController<List<DriverAlert>>();
     final sourceKeys = <String, Set<String>>{};
     final alertsByPath = <String, DriverAlert>{};
-    final subscriptions = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    final subscriptions =
+        <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    var started = false;
 
     void emit() {
       final alerts = alertsByPath.values.toList()
@@ -34,55 +38,169 @@ class DriverDataService {
           final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bTime.compareTo(aTime);
         });
+      debugPrint(
+        '[DriverDataService.alerts.emit] driver=$driverId total=${alerts.length}',
+      );
       if (!controller.isClosed) controller.add(alerts);
     }
 
     void listenTo(String key, Query<Map<String, dynamic>> query) {
+      debugPrint('[DriverDataService.alerts.listen] source=$key');
       final subscription = query.snapshots().listen(
         (snap) {
+          debugPrint(
+            '[DriverDataService.alerts.snapshot] source=$key count=${snap.docs.length}',
+          );
           for (final oldKey in sourceKeys[key] ?? const <String>{}) {
             alertsByPath.remove(oldKey);
           }
           final nextKeys = <String>{};
           for (final doc in snap.docs) {
             final docKey = doc.reference.path;
+            debugPrint(
+              '[DriverDataService.alerts.doc] source=$key path=$docKey data=${doc.data()}',
+            );
             nextKeys.add(docKey);
             alertsByPath[docKey] = DriverAlert.fromDoc(doc);
           }
           sourceKeys[key] = nextKeys;
           emit();
         },
-        onError: controller.addError,
+        onError: (Object error, StackTrace stackTrace) {
+          debugPrint(
+            '[DriverDataService.alerts.error] source=$key error=$error',
+          );
+          emit();
+        },
       );
       subscriptions.add(subscription);
     }
 
-    listenTo(
-      'flat',
-      _firestore.collection('alerts').where('driverId', isEqualTo: driverId).limit(50),
-    );
+    Future<void> start() async {
+      if (started) return;
+      started = true;
+      debugPrint(
+        '[DriverDataService.alerts.start] driver=$driverId bus=${driver.currentBusId}',
+      );
 
-    final today = DateTime.now();
-    for (var i = 0; i < 14; i++) {
-      final date = today.subtract(Duration(days: i));
-      final dateKey =
-          '${date.year.toString().padLeft(4, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.day.toString().padLeft(2, '0')}';
       listenTo(
-        dateKey,
+        'flat_driverId',
         _firestore
-            .collectionGroup(dateKey)
-            .where('driver', isEqualTo: driverId)
+            .collection('alerts')
+            .where('driverId', isEqualTo: driverId)
             .limit(50),
       );
+
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final dateKeys = List.generate(16, (index) {
+        final date = tomorrow.subtract(Duration(days: index));
+        return _dateKey(date);
+      });
+
+      final deviceIds = await _alertDeviceIdsFor(driver);
+      debugPrint(
+        '[DriverDataService.alerts.devices] driver=$driverId devices=$deviceIds dates=$dateKeys',
+      );
+
+      for (final deviceId in deviceIds) {
+        for (final dateKey in dateKeys) {
+          listenTo(
+            'device:$deviceId/$dateKey',
+            _firestore
+                .collection('alerts')
+                .doc(deviceId)
+                .collection(dateKey)
+                .where('driver', isEqualTo: driverId)
+                .limit(50),
+          );
+        }
+      }
+
+      for (final dateKey in dateKeys) {
+        listenTo(
+          'group:$dateKey',
+          _firestore
+              .collectionGroup(dateKey)
+              .where('driver', isEqualTo: driverId)
+              .limit(50),
+        );
+      }
     }
 
+    controller.onListen = start;
     controller.onCancel = () async {
-      await Future.wait(subscriptions.map((subscription) => subscription.cancel()));
+      debugPrint('[DriverDataService.alerts.cancel] driver=$driverId');
+      await Future.wait(
+        subscriptions.map((subscription) => subscription.cancel()),
+      );
     };
 
     return controller.stream;
+  }
+
+  Future<Set<String>> _alertDeviceIdsFor(DriverProfile driver) async {
+    final ids = <String>{};
+    final rawDeviceId = readString(driver.raw, [
+      'deviceId',
+      'fingerprint_scanner_id',
+      'scannerId',
+    ]);
+    if (rawDeviceId.isNotEmpty) ids.add(rawDeviceId);
+
+    final bus = driver.currentBusId;
+    if (bus.isEmpty) return ids;
+
+    Future<void> addFromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc,
+      String source,
+    ) async {
+      if (!doc.exists) {
+        debugPrint('[DriverDataService.alerts.deviceLookup] $source missing');
+        return;
+      }
+      final deviceId = readString(doc.data() ?? {}, ['deviceId']);
+      debugPrint(
+        '[DriverDataService.alerts.deviceLookup] $source deviceId=$deviceId',
+      );
+      if (deviceId.isNotEmpty) ids.add(deviceId);
+    }
+
+    final byPlate = await _firestore
+        .collection('vehicles')
+        .where('busNumberPlate', isEqualTo: bus)
+        .limit(5)
+        .get();
+    debugPrint(
+      '[DriverDataService.alerts.deviceLookup] vehicles.busNumberPlate=$bus count=${byPlate.docs.length}',
+    );
+    for (final doc in byPlate.docs) {
+      await addFromDoc(doc, doc.reference.path);
+    }
+
+    await addFromDoc(
+      await _firestore.collection('vehicles').doc(bus).get(),
+      'vehicles/$bus',
+    );
+
+    final byBusNumber = await _firestore
+        .collection('vehicles')
+        .where('busNumber', isEqualTo: bus)
+        .limit(5)
+        .get();
+    debugPrint(
+      '[DriverDataService.alerts.deviceLookup] vehicles.busNumber=$bus count=${byBusNumber.docs.length}',
+    );
+    for (final doc in byBusNumber.docs) {
+      await addFromDoc(doc, doc.reference.path);
+    }
+
+    return ids;
+  }
+
+  String _dateKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   Stream<List<DriverFeedback>> feedback(String driverId) {
