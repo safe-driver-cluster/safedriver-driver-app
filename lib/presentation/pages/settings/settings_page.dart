@@ -35,7 +35,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final messenger = ScaffoldMessenger.of(context);
     if (refreshed == null) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.t('profileRefreshFailed'))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.t('profileRefreshFailed'))),
+      );
       return;
     }
 
@@ -185,9 +187,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String _licenseText(DriverProfile driver) {
-    return [driver.licenseType, driver.licenseNumber]
-        .where((value) => value.trim().isNotEmpty)
-        .join(' ');
+    return [
+      driver.licenseType,
+      driver.licenseNumber,
+    ].where((value) => value.trim().isNotEmpty).join(' ');
   }
 
   String _dateText(DateTime? value) {
@@ -367,15 +370,26 @@ class _ThemeModeTile extends StatelessWidget {
       icon: Icons.contrast_rounded,
       child: Row(
         children: [
-          Expanded(child: Text(l10n.t('theme'), style: AppTextStyles.bodyMedium)),
+          Expanded(
+            child: Text(l10n.t('theme'), style: AppTextStyles.bodyMedium),
+          ),
           const SizedBox(width: 12),
           DropdownButton<ThemeMode>(
             value: mode,
             underline: const SizedBox.shrink(),
             items: [
-              DropdownMenuItem(value: ThemeMode.system, child: Text(l10n.t('systemDefault'))),
-              DropdownMenuItem(value: ThemeMode.light, child: Text(l10n.t('lightMode'))),
-              DropdownMenuItem(value: ThemeMode.dark, child: Text(l10n.t('darkMode'))),
+              DropdownMenuItem(
+                value: ThemeMode.system,
+                child: Text(l10n.t('systemDefault')),
+              ),
+              DropdownMenuItem(
+                value: ThemeMode.light,
+                child: Text(l10n.t('lightMode')),
+              ),
+              DropdownMenuItem(
+                value: ThemeMode.dark,
+                child: Text(l10n.t('darkMode')),
+              ),
             ],
             onChanged: (value) {
               if (value != null) onChanged(value);
@@ -405,15 +419,23 @@ class _LanguageTile extends StatelessWidget {
       showDivider: false,
       child: Row(
         children: [
-          Expanded(child: Text(l10n.t('language'), style: AppTextStyles.bodyMedium)),
+          Expanded(
+            child: Text(l10n.t('language'), style: AppTextStyles.bodyMedium),
+          ),
           const SizedBox(width: 12),
           DropdownButton<Locale>(
             value: locale,
             underline: const SizedBox.shrink(),
             items: const [
               DropdownMenuItem(value: Locale('en'), child: Text('English')),
-              DropdownMenuItem(value: Locale('si'), child: Text('\u0dc3\u0dd2\u0d82\u0dc4\u0dbd')),
-              DropdownMenuItem(value: Locale('ta'), child: Text('\u0ba4\u0bae\u0bbf\u0bb4\u0bcd')),
+              DropdownMenuItem(
+                value: Locale('si'),
+                child: Text('\u0dc3\u0dd2\u0d82\u0dc4\u0dbd'),
+              ),
+              DropdownMenuItem(
+                value: Locale('ta'),
+                child: Text('\u0ba4\u0bae\u0bbf\u0bb4\u0bcd'),
+              ),
             ],
             onChanged: (value) {
               if (value != null) onChanged(value);
@@ -533,8 +555,7 @@ class _TileShell extends StatelessWidget {
             ],
           ),
         ),
-        if (showDivider)
-          const Divider(height: 1, indent: 62, endIndent: 14),
+        if (showDivider) const Divider(height: 1, indent: 62, endIndent: 14),
       ],
     );
   }
