@@ -71,45 +71,47 @@ class _AlertsPageState extends State<AlertsPage> {
 
         return RefreshIndicator(
           onRefresh: _refresh,
-          child: ListView(
+          child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
-            children: [
-              _AlertSearchField(
-                controller: _search,
-                onChanged: (_) => setState(() {}),
-                onClear: () {
-                  _search.clear();
-                  setState(() {});
-                },
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _AlertControlsHeader(
+                  controller: _search,
+                  types: types,
+                  selectedType: _selectedType,
+                  onSearchChanged: (_) => setState(() {}),
+                  onClearSearch: () {
+                    _search.clear();
+                    setState(() {});
+                  },
+                  onTypeSelected: (value) =>
+                      setState(() => _selectedType = value),
+                ),
               ),
-              const SizedBox(height: 10),
-              _AlertFilterChips(
-                types: types,
-                selectedType: _selectedType,
-                onSelected: (value) => setState(() => _selectedType = value),
-              ),
-              const SizedBox(height: 12),
               if (filtered.isEmpty)
-                SizedBox(
-                  height: MediaQuery.sizeOf(context).height * 0.46,
-                  child: EmptyState(
-                    message: data.isEmpty
-                        ? l10n.t('noAlerts')
-                        : 'No matching alerts',
-                    icon: Icons.notifications_off_rounded,
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 96),
+                    child: EmptyState(
+                      message: data.isEmpty
+                          ? l10n.t('noAlerts')
+                          : 'No matching alerts',
+                      icon: Icons.notifications_off_rounded,
+                    ),
                   ),
                 )
               else
-                ...List.generate(filtered.length, (index) {
-                  final alert = filtered[index];
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: index == filtered.length - 1 ? 0 : 10,
-                    ),
-                    child: _AlertCard(alert: alert),
-                  );
-                }),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                  sliver: SliverList.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) =>
+                        _AlertCard(alert: filtered[index]),
+                  ),
+                ),
             ],
           ),
         );
@@ -150,6 +152,77 @@ class _AlertsPageState extends State<AlertsPage> {
       final searchMatches = query.isEmpty || searchable.contains(query);
       return typeMatches && searchMatches;
     }).toList();
+  }
+}
+
+class _AlertControlsHeader extends SliverPersistentHeaderDelegate {
+  _AlertControlsHeader({
+    required this.controller,
+    required this.types,
+    required this.selectedType,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.onTypeSelected,
+  });
+
+  final TextEditingController controller;
+  final List<String> types;
+  final String selectedType;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final ValueChanged<String> onTypeSelected;
+
+  @override
+  double get minExtent => 126;
+
+  @override
+  double get maxExtent => 126;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        boxShadow: overlapsContent
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+        child: Column(
+          children: [
+            _AlertSearchField(
+              controller: controller,
+              onChanged: onSearchChanged,
+              onClear: onClearSearch,
+            ),
+            const SizedBox(height: 10),
+            _AlertFilterChips(
+              types: types,
+              selectedType: selectedType,
+              onSelected: onTypeSelected,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _AlertControlsHeader oldDelegate) {
+    return oldDelegate.controller != controller ||
+        oldDelegate.types != types ||
+        oldDelegate.selectedType != selectedType;
   }
 }
 
