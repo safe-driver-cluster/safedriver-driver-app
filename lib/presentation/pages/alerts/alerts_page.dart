@@ -87,7 +87,8 @@ class _AlertsPageState extends State<AlertsPage> {
             ),
           );
         }
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
