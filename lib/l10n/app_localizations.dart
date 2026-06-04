@@ -98,6 +98,13 @@ class AppLocalizations {
       'phoneRequired': 'Enter your registered phone number',
       'otpRequired': 'Enter the OTP code',
       'driverNotFound': 'No active driver found for this phone number.',
+      'invalidPhone': 'Enter a valid registered phone number.',
+      'tooManyRequests': 'Too many attempts. Please try again later.',
+      'invalidOtp': 'Invalid OTP. Please check the code and try again.',
+      'otpExpired': 'OTP expired. Please request a new code.',
+      'otpRequestInvalid':
+          'This OTP request is no longer valid. Please request a new code.',
+      'networkError': 'Connection failed. Please check internet and try again.',
       'otpFailed': 'Could not send OTP. Please try again.',
       'loginFailed': 'Login failed. Please check the code and try again.',
       'complaintSent': 'Complaint sent to admin.',
@@ -109,6 +116,21 @@ class AppLocalizations {
 
   String t(String key) {
     return _values[locale.languageCode]?[key] ?? _values['en']![key] ?? key;
+  }
+
+  String authErrorMessage(String? code, {String fallbackKey = 'loginFailed'}) {
+    return t(switch (code) {
+      'driver_not_found' => 'driverNotFound',
+      'invalid_phone' => 'invalidPhone',
+      'too_many_requests' => 'tooManyRequests',
+      'invalid_otp' => 'invalidOtp',
+      'otp_expired' => 'otpExpired',
+      'otp_request_invalid' => 'otpRequestInvalid',
+      'network_error' => 'networkError',
+      'otp_failed' => 'otpFailed',
+      'login_failed' => 'loginFailed',
+      _ => fallbackKey,
+    });
   }
 }
 
