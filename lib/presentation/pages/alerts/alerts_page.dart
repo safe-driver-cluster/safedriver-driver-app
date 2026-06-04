@@ -219,7 +219,7 @@ class _AlertsPageState extends State<AlertsPage> {
             colorScheme: Theme.of(context).colorScheme.copyWith(
               primary: AppColors.primaryColor,
             ),
-          ),
+          );
           child: child!,
         );
       },
