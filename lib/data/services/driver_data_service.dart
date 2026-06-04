@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,10 +22,67 @@ class DriverDataService {
   }
 
   Stream<List<DriverAlert>> alerts(String driverId) {
-    return _query(
-      'alerts',
-      driverId,
-    ).snapshots().map((snap) => snap.docs.map(DriverAlert.fromDoc).toList());
+    final controller = StreamController<List<DriverAlert>>();
+    final sourceKeys = <String, Set<String>>{};
+    final alertsByPath = <String, DriverAlert>{};
+    final subscriptions = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+
+    void emit() {
+      final alerts = alertsByPath.values.toList()
+        ..sort((a, b) {
+          final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bTime.compareTo(aTime);
+        });
+      if (!controller.isClosed) controller.add(alerts);
+    }
+
+    void listenTo(String key, Query<Map<String, dynamic>> query) {
+      final subscription = query.snapshots().listen(
+        (snap) {
+          for (final oldKey in sourceKeys[key] ?? const <String>{}) {
+            alertsByPath.remove(oldKey);
+          }
+          final nextKeys = <String>{};
+          for (final doc in snap.docs) {
+            final docKey = doc.reference.path;
+            nextKeys.add(docKey);
+            alertsByPath[docKey] = DriverAlert.fromDoc(doc);
+          }
+          sourceKeys[key] = nextKeys;
+          emit();
+        },
+        onError: controller.addError,
+      );
+      subscriptions.add(subscription);
+    }
+
+    listenTo(
+      'flat',
+      _firestore.collection('alerts').where('driverId', isEqualTo: driverId).limit(50),
+    );
+
+    final today = DateTime.now();
+    for (var i = 0; i < 14; i++) {
+      final date = today.subtract(Duration(days: i));
+      final dateKey =
+          '${date.year.toString().padLeft(4, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
+          '${date.day.toString().padLeft(2, '0')}';
+      listenTo(
+        dateKey,
+        _firestore
+            .collectionGroup(dateKey)
+            .where('driver', isEqualTo: driverId)
+            .limit(50),
+      );
+    }
+
+    controller.onCancel = () async {
+      await Future.wait(subscriptions.map((subscription) => subscription.cancel()));
+    };
+
+    return controller.stream;
   }
 
   Stream<List<DriverFeedback>> feedback(String driverId) {

@@ -73,6 +73,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /alerts/{deviceId}/{date}/{alertId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driver;
+      allow write: if false;
+    }
+
+    // Date-named alert subcollections are queried with collectionGroup().
+    match /{path=**}/{date}/{alertId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == resource.data.driver;
+    }
+
     match /driverComplaints/{complaintId} {
       allow create: if isAuthenticated() &&
                       request.auth.token.role == 'driver' &&
