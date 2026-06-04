@@ -216,10 +216,10 @@ class _AlertsPageState extends State<AlertsPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primaryColor,
-            ),
-          );
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppColors.primaryColor),
+          ),
           child: child!,
         );
       },
@@ -386,7 +386,7 @@ class _AlertDateFilterChips extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          );
         }).toList(),
       ),
     );
