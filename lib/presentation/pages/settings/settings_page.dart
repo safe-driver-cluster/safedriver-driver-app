@@ -4,7 +4,6 @@ import '../../../app/routes.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
-import '../../../data/models/driver_models.dart';
 import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -86,53 +85,6 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 96),
         children: [
-          if (driver != null) ...[
-            _DriverHeader(driver: driver, l10n: l10n),
-            const SizedBox(height: 12),
-            _SectionTitle(title: l10n.t('accountDetails')),
-            const SizedBox(height: 8),
-            _SettingsCard(
-              children: [
-                _DataTile(
-                  icon: Icons.badge_rounded,
-                  label: l10n.t('employeeId'),
-                  value: driver.employeeId,
-                ),
-                _DataTile(
-                  icon: Icons.phone_rounded,
-                  label: l10n.t('phoneNumber'),
-                  value: driver.phoneNumber,
-                ),
-                _DataTile(
-                  icon: Icons.mail_rounded,
-                  label: l10n.t('email'),
-                  value: driver.email,
-                ),
-                _DataTile(
-                  icon: Icons.credit_card_rounded,
-                  label: l10n.t('license'),
-                  value: _licenseText(driver),
-                ),
-                _DataTile(
-                  icon: Icons.event_rounded,
-                  label: l10n.t('licenseExpiry'),
-                  value: _dateText(driver.licenseExpiry),
-                ),
-                _DataTile(
-                  icon: Icons.directions_bus_rounded,
-                  label: l10n.t('currentBus'),
-                  value: driver.currentBusId,
-                ),
-                _DataTile(
-                  icon: Icons.alt_route_rounded,
-                  label: l10n.t('routeGuidance'),
-                  value: driver.currentRoute,
-                  showDivider: false,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
           _SectionTitle(title: l10n.t('appPreferences')),
           const SizedBox(height: 8),
           _SettingsCard(
@@ -185,102 +137,6 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-
-  String _licenseText(DriverProfile driver) {
-    return [
-      driver.licenseType,
-      driver.licenseNumber,
-    ].where((value) => value.trim().isNotEmpty).join(' ');
-  }
-
-  String _dateText(DateTime? value) {
-    if (value == null) return '';
-    final year = value.year.toString().padLeft(4, '0');
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    return '$year-$month-$day';
-  }
-}
-
-class _DriverHeader extends StatelessWidget {
-  const _DriverHeader({required this.driver, required this.l10n});
-
-  final DriverProfile driver;
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = driver.isOnDuty
-        ? AppColors.secondaryColor
-        : AppColors.textSecondary;
-    return SoftCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.cardTint,
-            backgroundImage: driver.profileImageUrl == null
-                ? null
-                : NetworkImage(driver.profileImageUrl!),
-            child: driver.profileImageUrl == null
-                ? const Icon(Icons.person_rounded, color: AppColors.primaryDark)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  driver.fullName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.title.copyWith(
-                    fontWeight: AppFontWeights.extraBold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  driver.employeeId,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.circle, size: 8, color: statusColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      driver.isOnDuty ? l10n.t('active') : l10n.t('inactive'),
-                      style: AppTextStyles.caption.copyWith(
-                        color: statusColor,
-                        fontWeight: AppFontWeights.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 16,
-                      color: AppColors.warningColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${driver.rating.toStringAsFixed(1)} (${driver.totalRatings})',
-                      style: AppTextStyles.caption.copyWith(
-                        fontWeight: AppFontWeights.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -310,45 +166,6 @@ class _SettingsCard extends StatelessWidget {
     return SoftCard(
       padding: EdgeInsets.zero,
       child: Column(children: children),
-    );
-  }
-}
-
-class _DataTile extends StatelessWidget {
-  const _DataTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.showDivider = true,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    return _TileShell(
-      icon: icon,
-      showDivider: showDivider,
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value.trim().isEmpty ? '-' : value,
-              textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontWeight: AppFontWeights.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
