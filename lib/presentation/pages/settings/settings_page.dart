@@ -7,6 +7,7 @@ import '../../../core/constants/design_constants.dart';
 import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
+import '../../widgets/common/logout_confirmation_dialog.dart';
 import '../../widgets/common/professional_widgets.dart';
 import '../support/support_page.dart';
 
@@ -48,24 +49,14 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_loggingOut) return;
     final app = AppScope.of(context);
     final l10n = AppLocalizations.of(context);
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout = await showLogoutConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.t('logoutConfirmTitle')),
-        content: Text(l10n.t('logoutConfirmMessage')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.t('cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.t('logout')),
-          ),
-        ],
-      ),
+      title: l10n.t('logoutConfirmTitle'),
+      message: l10n.t('logoutConfirmMessage'),
+      cancelLabel: l10n.t('cancel'),
+      logoutLabel: l10n.t('logout'),
     );
-    if (shouldLogout != true) return;
+    if (!shouldLogout) return;
 
     setState(() => _loggingOut = true);
     await DriverAuthService().signOut();
