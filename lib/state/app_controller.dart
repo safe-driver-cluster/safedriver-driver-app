@@ -17,9 +17,9 @@ class AppController extends ChangeNotifier {
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     _locale = Locale(prefs.getString('locale') ?? 'en');
-    _themeMode = prefs.getBool('darkMode') == true
-        ? ThemeMode.dark
-        : ThemeMode.light;
+    _themeMode =
+        _themeModeFromName(prefs.getString('themeMode')) ??
+        (prefs.getBool('darkMode') == true ? ThemeMode.dark : ThemeMode.light);
     _onboardingComplete = prefs.getBool('onboardingComplete') ?? false;
     notifyListeners();
   }
@@ -34,6 +34,7 @@ class AppController extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('themeMode', mode.name);
     await prefs.setBool('darkMode', mode == ThemeMode.dark);
     notifyListeners();
   }
@@ -53,6 +54,14 @@ class AppController extends ChangeNotifier {
   void clearDriver() {
     _driver = null;
     notifyListeners();
+  }
+
+  ThemeMode? _themeModeFromName(String? value) {
+    if (value == null) return null;
+    for (final mode in ThemeMode.values) {
+      if (mode.name == value) return mode;
+    }
+    return null;
   }
 }
 
