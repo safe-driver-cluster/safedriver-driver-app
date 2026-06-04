@@ -9,6 +9,7 @@ import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
+import '../support/support_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -162,7 +163,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.support_agent_rounded,
                 label: l10n.t('support'),
                 value: l10n.t('contactAdmin'),
-                onTap: () => Navigator.pushNamed(context, AppRoutes.dashboard, arguments: 0),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportPage()),
+                ),
               ),
               _ActionTile(
                 icon: Icons.logout_rounded,
