@@ -109,6 +109,37 @@ class DriverAuthService {
     }
   }
 
+  Future<DriverProfile?> findDriverForCurrentUser() async {
+    final user = _auth.currentUser;
+    debugPrint(
+      '[DriverAuthService.findDriverForCurrentUser] current uid=${user?.uid}',
+    );
+    if (user == null) return null;
+
+    try {
+      final authUidQuery = await _firestore
+          .collection('drivers')
+          .where('authUid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      if (authUidQuery.docs.isNotEmpty) {
+        final driver = DriverProfile.fromDoc(authUidQuery.docs.first);
+        debugPrint(
+          '[DriverAuthService.findDriverForCurrentUser] found by authUid id=${driver.id}, active=${driver.isActive}',
+        );
+        return driver.isActive ? driver : null;
+      }
+    } on FirebaseException catch (error) {
+      debugPrint(
+        '[DriverAuthService.findDriverForCurrentUser] authUid lookup failed code=${error.code}',
+      );
+    }
+
+    const prefix = 'driver_';
+    if (!user.uid.startsWith(prefix)) return null;
+    return findDriverById(user.uid.substring(prefix.length));
+  }
+
   Future<OtpStartResult> startOtpLogin(String phoneInput) async {
     debugPrint('[DriverAuthService.startOtpLogin] raw phoneInput: $phoneInput');
     debugPrint(
