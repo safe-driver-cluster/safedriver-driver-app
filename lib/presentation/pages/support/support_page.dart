@@ -8,6 +8,7 @@ import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
+import 'support_history_page.dart';
 
 class SupportPage extends StatefulWidget {
   const SupportPage({super.key});
@@ -94,6 +95,16 @@ class _SupportPageState extends State<SupportPage> {
     return DriverPageShell(
       title: l10n.t('support'),
       selectedNavIndex: 0,
+      actions: [
+        DriverIconButton(
+          tooltip: 'Support history',
+          icon: Icons.history_rounded,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SupportHistoryPage()),
+          ),
+        ),
+      ],
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
         children: [
