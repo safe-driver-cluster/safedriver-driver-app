@@ -17,7 +17,8 @@ class AppController extends ChangeNotifier {
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     _locale = Locale(prefs.getString('locale') ?? 'en');
-    _themeMode = _themeModeFromName(prefs.getString('themeMode')) ??
+    _themeMode =
+        _themeModeFromName(prefs.getString('themeMode')) ??
         (prefs.getBool('darkMode') == true ? ThemeMode.dark : ThemeMode.light);
     _onboardingComplete = prefs.getBool('onboardingComplete') ?? false;
     notifyListeners();
