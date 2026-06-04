@@ -13,11 +13,13 @@ import '../alerts/alerts_page.dart';
 import '../attendance/attendance_page.dart';
 import '../buses/buses_page.dart';
 import '../complaints/complaint_page.dart';
+import '../complaints/complaint_history_page.dart';
 import '../maps/map_page.dart';
 import '../profile/profile_page.dart';
 import '../ratings/ratings_page.dart';
 import '../settings/settings_page.dart';
 import '../support/support_page.dart';
+import '../support/support_history_page.dart';
 import '../../widgets/common/professional_widgets.dart';
 
 class DriverDashboardPage extends StatefulWidget {
@@ -252,6 +254,16 @@ class _DashboardHome extends StatelessWidget {
               ),
             ),
             DashboardActionTile(
+              title: 'Complaint history',
+              subtitle: 'Your submitted complaints',
+              icon: Icons.assignment_rounded,
+              color: AppColors.dangerColor,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ComplaintHistoryPage()),
+              ),
+            ),
+            DashboardActionTile(
               title: l10n.t('map'),
               subtitle: driver.currentRoute.isEmpty
                   ? l10n.t('routeGuidance')
@@ -271,6 +283,16 @@ class _DashboardHome extends StatelessWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SupportPage()),
+              ),
+            ),
+            DashboardActionTile(
+              title: 'Support history',
+              subtitle: 'Your support requests',
+              icon: Icons.forum_rounded,
+              color: AppColors.primaryColor,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SupportHistoryPage()),
               ),
             ),
             DashboardActionTile(

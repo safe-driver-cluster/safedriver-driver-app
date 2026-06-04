@@ -10,6 +10,7 @@ import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
+import 'complaint_history_page.dart';
 
 class ComplaintPage extends StatefulWidget {
   const ComplaintPage({super.key});
@@ -52,6 +53,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
         driverId: AppScope.of(context).driver!.id,
         title: _title.text.trim().isEmpty ? _selectedType : _title.text.trim(),
         message: _message.text.trim(),
+        category: _selectedType,
         media: _media,
       );
       _title.clear();
@@ -132,6 +134,16 @@ class _ComplaintPageState extends State<ComplaintPage> {
     final l10n = AppLocalizations.of(context);
     return DriverPageShell(
       title: l10n.t('complaints'),
+      actions: [
+        DriverIconButton(
+          tooltip: 'Complaint history',
+          icon: Icons.history_rounded,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ComplaintHistoryPage()),
+          ),
+        ),
+      ],
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
         children: [

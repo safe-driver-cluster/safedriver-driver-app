@@ -18,6 +18,12 @@ class DriverDashboardViewModel extends ChangeNotifier {
   Stream<List<DriverFeedback>> feedback(String driverId) =>
       dataService.feedback(driverId);
 
+  Stream<List<DriverComplaintRecord>> complaints(String driverId) =>
+      dataService.complaints(driverId);
+
+  Stream<List<DriverSupportRequest>> supportRequests(String driverId) =>
+      dataService.supportRequests(driverId);
+
   Stream<List<DriverBus>> buses(DriverProfile driver) =>
       dataService.buses(driver);
 }
