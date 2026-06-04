@@ -330,7 +330,7 @@ class DriverFeedback {
       id: doc.id,
       title: readString(data, ['title'], 'Passenger feedback'),
       description: readString(data, ['description', 'comment']),
-      rating: value is num ? value.toInt() : 0,
+      rating: readInt(value),
       category: readString(data, ['category'], 'driver'),
       createdAt: readDate(
         data['createdAt'] ?? data['submittedAt'] ?? data['timestamp'],
