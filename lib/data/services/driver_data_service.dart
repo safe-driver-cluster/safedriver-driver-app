@@ -219,6 +219,18 @@ class DriverDataService {
     ).snapshots().map((snap) => snap.docs.map(DriverFeedback.fromDoc).toList());
   }
 
+  Stream<List<DriverComplaintRecord>> complaints(String driverId) {
+    return _query('driverComplaints', driverId).snapshots().map(
+      (snap) => snap.docs.map(DriverComplaintRecord.fromDoc).toList(),
+    );
+  }
+
+  Stream<List<DriverSupportRequest>> supportRequests(String driverId) {
+    return _query('support_conversations', driverId).snapshots().map(
+      (snap) => snap.docs.map(DriverSupportRequest.fromDoc).toList(),
+    );
+  }
+
   Stream<List<DriverBus>> buses(DriverProfile driver) {
     var query = _firestore.collection('vehicles').limit(50);
     if (driver.currentBusId.isNotEmpty) {
@@ -275,6 +287,7 @@ class DriverDataService {
     required String driverId,
     required String title,
     required String message,
+    String? category,
     XFile? media,
   }) async {
     final doc = _firestore.collection('driverComplaints').doc();
@@ -297,6 +310,8 @@ class DriverDataService {
       'driverId': driverId,
       'title': title,
       'message': message,
+      if (category != null && category.trim().isNotEmpty)
+        'category': category.trim(),
       'status': 'open',
       'createdAt': FieldValue.serverTimestamp(),
       if (mediaUrl != null) 'mediaUrl': mediaUrl,
