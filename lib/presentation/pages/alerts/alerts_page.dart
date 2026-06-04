@@ -21,18 +21,44 @@ class AlertsPage extends StatefulWidget {
 
 class _AlertsPageState extends State<AlertsPage> {
   final _search = TextEditingController();
+  final _vm = DriverDashboardViewModel();
+  Stream<List<DriverAlert>>? _alertStream;
+  String? _streamDriverId;
   int _refreshKey = 0;
   String _selectedType = 'all';
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final driver = AppScope.of(context).driver;
+    if (driver != null &&
+        (_alertStream == null || _streamDriverId != driver.id)) {
+      _setAlertStream(driver);
+    }
+  }
+
+  @override
   void dispose() {
     _search.dispose();
+    _vm.dispose();
     super.dispose();
+  }
+
+  void _setAlertStream(DriverProfile driver) {
+    debugPrint(
+      '[AlertsPage.stream] create stream driver=${driver.id} bus=${driver.currentBusId}',
+    );
+    _streamDriverId = driver.id;
+    _alertStream = _vm.alerts(driver);
   }
 
   Future<void> _refresh() async {
     debugPrint('[AlertsPage.refresh] restarting alert stream');
-    setState(() => _refreshKey++);
+    final driver = AppScope.of(context).driver!;
+    setState(() {
+      _refreshKey++;
+      _setAlertStream(driver);
+    });
     await Future<void>.delayed(const Duration(milliseconds: 350));
   }
 
@@ -40,10 +66,10 @@ class _AlertsPageState extends State<AlertsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final driver = AppScope.of(context).driver!;
-    final vm = DriverDashboardViewModel();
+    final stream = _alertStream ?? _vm.alerts(driver);
     final body = StreamBuilder(
       key: ValueKey(_refreshKey),
-      stream: vm.alerts(driver),
+      stream: stream,
       builder: (context, snapshot) {
         final data = snapshot.data ?? [];
         debugPrint(
@@ -80,13 +106,23 @@ class _AlertsPageState extends State<AlertsPage> {
                   controller: _search,
                   types: types,
                   selectedType: _selectedType,
-                  onSearchChanged: (_) => setState(() {}),
-                  onClearSearch: () {
-                    _search.clear();
+                  onSearchChanged: (_) {
+                    debugPrint(
+                      '[AlertsPage.search] query=${_search.text.trim()} local filter only',
+                    );
                     setState(() {});
                   },
-                  onTypeSelected: (value) =>
-                      setState(() => _selectedType = value),
+                  onClearSearch: () {
+                    _search.clear();
+                    debugPrint('[AlertsPage.search] cleared local filter only');
+                    setState(() {});
+                  },
+                  onTypeSelected: (value) {
+                    debugPrint(
+                      '[AlertsPage.filter] type=$value local filter only',
+                    );
+                    setState(() => _selectedType = value);
+                  },
                 ),
               ),
               if (filtered.isEmpty)
