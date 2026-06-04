@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../app/routes.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 
@@ -23,8 +24,17 @@ class _SplashPageState extends State<SplashPage> {
     Timer(const Duration(seconds: 2), _goNext);
   }
 
-  void _goNext() {
+  Future<void> _goNext() async {
+    final driver = await DriverAuthService().findDriverForCurrentUser();
+    if (!mounted) return;
+
     final app = AppScope.of(context);
+    if (driver != null) {
+      app.setDriver(driver);
+      Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+      return;
+    }
+
     final route = app.onboardingComplete ? AppRoutes.login : AppRoutes.language;
     Navigator.pushReplacementNamed(context, route);
   }
