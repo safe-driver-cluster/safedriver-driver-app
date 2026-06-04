@@ -10,10 +10,31 @@ import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
 import '../../widgets/common/professional_widgets.dart';
 
-class AlertsPage extends StatelessWidget {
+class AlertsPage extends StatefulWidget {
   const AlertsPage({super.key, this.showAppBar = true});
 
   final bool showAppBar;
+
+  @override
+  State<AlertsPage> createState() => _AlertsPageState();
+}
+
+class _AlertsPageState extends State<AlertsPage> {
+  final _search = TextEditingController();
+  int _refreshKey = 0;
+  String _selectedType = 'all';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    debugPrint('[AlertsPage.refresh] restarting alert stream');
+    setState(() => _refreshKey++);
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,44 +42,270 @@ class AlertsPage extends StatelessWidget {
     final driver = AppScope.of(context).driver!;
     final vm = DriverDashboardViewModel();
     final body = StreamBuilder(
+      key: ValueKey(_refreshKey),
       stream: vm.alerts(driver),
       builder: (context, snapshot) {
         final data = snapshot.data ?? [];
         debugPrint(
-          '[AlertsPage] driver=${driver.id} state=${snapshot.connectionState} hasError=${snapshot.hasError} count=${data.length}',
+          '[AlertsPage] driver=${driver.id} refreshKey=$_refreshKey state=${snapshot.connectionState} hasError=${snapshot.hasError} count=${data.length}',
         );
         if (snapshot.hasError) {
           debugPrint('[AlertsPage.error] ${snapshot.error}');
-          return EmptyState(
-            message: 'Could not load alerts. Check debug logs.',
-            icon: Icons.error_outline_rounded,
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: _ScrollableEmptyState(
+              message: 'Could not load alerts. Check debug logs.',
+              icon: Icons.error_outline_rounded,
+            ),
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (data.isEmpty) {
-          return EmptyState(
-            message: l10n.t('noAlerts'),
-            icon: Icons.notifications_off_rounded,
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
-          itemCount: data.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, i) {
-            final alert = data[i];
-            return _AlertCard(alert: alert);
-          },
+
+        final types = _typesFor(data);
+        final filtered = _filteredAlerts(data);
+        debugPrint(
+          '[AlertsPage.filtered] query=${_search.text.trim()} type=$_selectedType count=${filtered.length}',
+        );
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
+            children: [
+              _AlertSearchField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                onClear: () {
+                  _search.clear();
+                  setState(() {});
+                },
+              ),
+              const SizedBox(height: 10),
+              _AlertFilterChips(
+                types: types,
+                selectedType: _selectedType,
+                onSelected: (value) => setState(() => _selectedType = value),
+              ),
+              const SizedBox(height: 12),
+              if (filtered.isEmpty)
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.46,
+                  child: EmptyState(
+                    message: data.isEmpty
+                        ? l10n.t('noAlerts')
+                        : 'No matching alerts',
+                    icon: Icons.notifications_off_rounded,
+                  ),
+                )
+              else
+                ...List.generate(filtered.length, (index) {
+                  final alert = filtered[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == filtered.length - 1 ? 0 : 10,
+                    ),
+                    child: _AlertCard(alert: alert),
+                  );
+                }),
+            ],
+          ),
         );
       },
     );
-    if (!showAppBar) return body;
+    if (!widget.showAppBar) return body;
     return DriverPageShell(
       title: l10n.t('myAlerts'),
       selectedNavIndex: 2,
       body: body,
+    );
+  }
+
+  List<String> _typesFor(List<DriverAlert> alerts) {
+    final types =
+        alerts
+            .map((alert) => alert.type.trim().toLowerCase())
+            .where((type) => type.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return ['all', ...types];
+  }
+
+  List<DriverAlert> _filteredAlerts(List<DriverAlert> alerts) {
+    final query = _search.text.trim().toLowerCase();
+    return alerts.where((alert) {
+      final typeMatches =
+          _selectedType == 'all' || alert.type.toLowerCase() == _selectedType;
+      final searchable = [
+        alert.title,
+        alert.description,
+        alert.type,
+        alert.tag,
+        alert.numberPlate,
+        alert.priority,
+      ].join(' ').toLowerCase();
+      final searchMatches = query.isEmpty || searchable.contains(query);
+      return typeMatches && searchMatches;
+    }).toList();
+  }
+}
+
+class _AlertSearchField extends StatelessWidget {
+  const _AlertSearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search alerts, plate, type...',
+        filled: true,
+        fillColor: Colors.white,
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppColors.primaryColor,
+        ),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Clear search',
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+              ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 13,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.cardTint),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.cardTint),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(
+            color: AppColors.primaryColor,
+            width: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlertFilterChips extends StatelessWidget {
+  const _AlertFilterChips({
+    required this.types,
+    required this.selectedType,
+    required this.onSelected,
+  });
+
+  final List<String> types;
+  final String selectedType;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: types.map((type) {
+          final selected = selectedType == type;
+          final label = type == 'all' ? 'All alerts' : _labelFor(type);
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: () => onSelected(type),
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primaryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: selected
+                        ? AppColors.primaryColor
+                        : AppColors.cardTint,
+                  ),
+                  boxShadow: selected ? AppDesign.shadowSM : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selected) ...[
+                      const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      label,
+                      style: AppTextStyles.caption.copyWith(
+                        color: selected ? Colors.white : AppColors.textPrimary,
+                        fontWeight: selected
+                            ? AppFontWeights.bold
+                            : AppFontWeights.medium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _labelFor(String type) {
+    if (type.isEmpty) return 'Alert';
+    return type
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+}
+
+class _ScrollableEmptyState extends StatelessWidget {
+  const _ScrollableEmptyState({required this.message, required this.icon});
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.62,
+          child: EmptyState(message: message, icon: icon),
+        ),
+      ],
     );
   }
 }
