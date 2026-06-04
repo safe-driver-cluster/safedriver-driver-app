@@ -181,9 +181,7 @@ class DriverAuthService {
       debugPrint(
         '[DriverAuthService.startOtpLogin] FirebaseFunctionsException code=${error.code}, message=${error.message}, details=${error.details}',
       );
-      throw DriverAuthException(
-        error.code == 'not-found' ? 'driver_not_found' : 'otp_failed',
-      );
+      throw DriverAuthException(_startOtpErrorCode(error.code));
     } catch (error, stackTrace) {
       debugPrint('[DriverAuthService.startOtpLogin] unexpected error: $error');
       debugPrint('[DriverAuthService.startOtpLogin] stackTrace: $stackTrace');
@@ -264,9 +262,7 @@ class DriverAuthService {
       debugPrint(
         '[DriverAuthService.verifyOtp] FirebaseFunctionsException code=${error.code}, message=${error.message}, details=${error.details}',
       );
-      throw DriverAuthException(
-        error.code == 'not-found' ? 'driver_not_found' : 'login_failed',
-      );
+      throw DriverAuthException(_verifyOtpErrorCode(error.code));
     } on FirebaseAuthException catch (error) {
       debugPrint(
         '[DriverAuthService.verifyOtp] FirebaseAuthException code=${error.code}, message=${error.message}',
@@ -280,6 +276,28 @@ class DriverAuthService {
   }
 
   Future<void> signOut() => _auth.signOut();
+
+  String _startOtpErrorCode(String code) {
+    return switch (code) {
+      'not-found' => 'driver_not_found',
+      'invalid-argument' => 'invalid_phone',
+      'resource-exhausted' => 'too_many_requests',
+      'unavailable' || 'deadline-exceeded' => 'network_error',
+      _ => 'otp_failed',
+    };
+  }
+
+  String _verifyOtpErrorCode(String code) {
+    return switch (code) {
+      'not-found' => 'driver_not_found',
+      'invalid-argument' => 'invalid_otp',
+      'deadline-exceeded' => 'otp_expired',
+      'resource-exhausted' => 'too_many_requests',
+      'failed-precondition' => 'otp_request_invalid',
+      'unavailable' => 'network_error',
+      _ => 'login_failed',
+    };
+  }
 }
 
 class DriverAuthException implements Exception {
