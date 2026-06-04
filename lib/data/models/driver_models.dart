@@ -343,6 +343,83 @@ class DriverFeedback {
   }
 }
 
+class DriverComplaintRecord {
+  DriverComplaintRecord({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.category,
+    required this.status,
+    required this.mediaUrl,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String title;
+  final String message;
+  final String category;
+  final String status;
+  final String mediaUrl;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory DriverComplaintRecord.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+    return DriverComplaintRecord(
+      id: doc.id,
+      title: readString(data, ['title'], 'Complaint'),
+      message: readString(data, ['message', 'description']),
+      category: readString(data, ['category', 'type']),
+      status: readString(data, ['status'], 'open'),
+      mediaUrl: readString(data, ['mediaUrl', 'imageUrl', 'attachmentUrl']),
+      createdAt: readDate(
+        data['createdAt'] ?? data['submittedAt'] ?? data['timestamp'],
+      ),
+      updatedAt: readDate(data['updatedAt'] ?? data['resolvedAt']),
+    );
+  }
+}
+
+class DriverSupportRequest {
+  DriverSupportRequest({
+    required this.id,
+    required this.category,
+    required this.message,
+    required this.priority,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String category;
+  final String message;
+  final String priority;
+  final String status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory DriverSupportRequest.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+    return DriverSupportRequest(
+      id: doc.id,
+      category: readString(data, ['category', 'subject'], 'Support request'),
+      message: readString(data, ['message', 'description', 'lastMessage']),
+      priority: readString(data, ['priority'], 'normal'),
+      status: readString(data, ['status'], 'open'),
+      createdAt: readDate(
+        data['createdAt'] ?? data['submittedAt'] ?? data['timestamp'],
+      ),
+      updatedAt: readDate(data['updatedAt'] ?? data['lastMessageAt']),
+    );
+  }
+}
+
 class AttendanceRecord {
   AttendanceRecord({
     required this.id,
