@@ -113,6 +113,7 @@ class DriverGradientAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top;
+    final canNavigateBack = showBack && Navigator.canPop(context);
     return Material(
       color: Colors.transparent,
       child: ClipRRect(
@@ -156,7 +157,7 @@ class DriverGradientAppBar extends StatelessWidget
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
                 child: Row(
                   children: [
-                    if (showBack) ...[
+                    if (canNavigateBack) ...[
                       const DriverBackButton(),
                       const SizedBox(width: 12),
                     ],
