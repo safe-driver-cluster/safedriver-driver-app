@@ -20,12 +20,13 @@ class AlertsPage extends StatefulWidget {
 }
 
 class _AlertsPageState extends State<AlertsPage> {
-  final _search = TextEditingController();
   final _vm = DriverDashboardViewModel();
   Stream<List<DriverAlert>>? _alertStream;
   String? _streamDriverId;
   int _refreshKey = 0;
   String _selectedType = 'all';
+  DateTimeRange? _dateRange;
+  String _dateFilter = 'all';
 
   @override
   void didChangeDependencies() {
@@ -39,7 +40,6 @@ class _AlertsPageState extends State<AlertsPage> {
 
   @override
   void dispose() {
-    _search.dispose();
     _vm.dispose();
     super.dispose();
   }
@@ -92,7 +92,7 @@ class _AlertsPageState extends State<AlertsPage> {
         final types = _typesFor(data);
         final filtered = _filteredAlerts(data);
         debugPrint(
-          '[AlertsPage.filtered] query=${_search.text.trim()} type=$_selectedType count=${filtered.length}',
+          '[AlertsPage.filtered] type=$_selectedType date=$_dateFilter range=${_dateRange?.start}..${_dateRange?.end} count=${filtered.length}',
         );
 
         return RefreshIndicator(
@@ -103,20 +103,12 @@ class _AlertsPageState extends State<AlertsPage> {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _AlertControlsHeader(
-                  controller: _search,
                   types: types,
                   selectedType: _selectedType,
-                  onSearchChanged: (_) {
-                    debugPrint(
-                      '[AlertsPage.search] query=${_search.text.trim()} local filter only',
-                    );
-                    setState(() {});
-                  },
-                  onClearSearch: () {
-                    _search.clear();
-                    debugPrint('[AlertsPage.search] cleared local filter only');
-                    setState(() {});
-                  },
+                  dateFilter: _dateFilter,
+                  dateRange: _dateRange,
+                  onDateFilterSelected: _selectDateFilter,
+                  onCustomDateRange: _pickDateRange,
                   onTypeSelected: (value) {
                     debugPrint(
                       '[AlertsPage.filter] type=$value local filter only',
@@ -173,39 +165,93 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 
   List<DriverAlert> _filteredAlerts(List<DriverAlert> alerts) {
-    final query = _search.text.trim().toLowerCase();
     return alerts.where((alert) {
       final typeMatches =
           _selectedType == 'all' || alert.type.toLowerCase() == _selectedType;
-      final searchable = [
-        alert.title,
-        alert.description,
-        alert.type,
-        alert.tag,
-        alert.numberPlate,
-        alert.priority,
-      ].join(' ').toLowerCase();
-      final searchMatches = query.isEmpty || searchable.contains(query);
-      return typeMatches && searchMatches;
+      final dateMatches = _dateRange == null || _isWithinRange(alert.createdAt);
+      return typeMatches && dateMatches;
     }).toList();
+  }
+
+  bool _isWithinRange(DateTime? value) {
+    if (value == null || _dateRange == null) return false;
+    final date = DateUtils.dateOnly(value);
+    final start = DateUtils.dateOnly(_dateRange!.start);
+    final end = DateUtils.dateOnly(_dateRange!.end);
+    return !date.isBefore(start) && !date.isAfter(end);
+  }
+
+  void _selectDateFilter(String value) {
+    final now = DateTime.now();
+    DateTimeRange? range;
+    if (value == 'today') {
+      range = DateTimeRange(start: now, end: now);
+    } else if (value == '7d') {
+      range = DateTimeRange(
+        start: now.subtract(const Duration(days: 6)),
+        end: now,
+      );
+    } else if (value == '30d') {
+      range = DateTimeRange(
+        start: now.subtract(const Duration(days: 29)),
+        end: now,
+      );
+    }
+    debugPrint('[AlertsPage.dateFilter] value=$value local filter only');
+    setState(() {
+      _dateFilter = value;
+      _dateRange = range;
+    });
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 1)),
+      initialDateRange:
+          _dateRange ??
+          DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null) return;
+    debugPrint(
+      '[AlertsPage.dateFilter] custom ${picked.start}..${picked.end} local filter only',
+    );
+    setState(() {
+      _dateFilter = 'custom';
+      _dateRange = picked;
+    });
   }
 }
 
 class _AlertControlsHeader extends SliverPersistentHeaderDelegate {
   _AlertControlsHeader({
-    required this.controller,
     required this.types,
     required this.selectedType,
-    required this.onSearchChanged,
-    required this.onClearSearch,
+    required this.dateFilter,
+    required this.dateRange,
+    required this.onDateFilterSelected,
+    required this.onCustomDateRange,
     required this.onTypeSelected,
   });
 
-  final TextEditingController controller;
   final List<String> types;
   final String selectedType;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onClearSearch;
+  final String dateFilter;
+  final DateTimeRange? dateRange;
+  final ValueChanged<String> onDateFilterSelected;
+  final VoidCallback onCustomDateRange;
   final ValueChanged<String> onTypeSelected;
 
   @override
@@ -237,10 +283,11 @@ class _AlertControlsHeader extends SliverPersistentHeaderDelegate {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         child: Column(
           children: [
-            _AlertSearchField(
-              controller: controller,
-              onChanged: onSearchChanged,
-              onClear: onClearSearch,
+            _AlertDateFilterChips(
+              selectedFilter: dateFilter,
+              dateRange: dateRange,
+              onSelected: onDateFilterSelected,
+              onCustomDateRange: onCustomDateRange,
             ),
             const SizedBox(height: 10),
             _AlertFilterChips(
@@ -256,66 +303,107 @@ class _AlertControlsHeader extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _AlertControlsHeader oldDelegate) {
-    return oldDelegate.controller != controller ||
-        oldDelegate.types != types ||
-        oldDelegate.selectedType != selectedType;
+    return oldDelegate.types != types ||
+        oldDelegate.selectedType != selectedType ||
+        oldDelegate.dateFilter != dateFilter ||
+        oldDelegate.dateRange != dateRange;
   }
 }
 
-class _AlertSearchField extends StatelessWidget {
-  const _AlertSearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onClear,
+class _AlertDateFilterChips extends StatelessWidget {
+  const _AlertDateFilterChips({
+    required this.selectedFilter,
+    required this.dateRange,
+    required this.onSelected,
+    required this.onCustomDateRange,
   });
 
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
+  final String selectedFilter;
+  final DateTimeRange? dateRange;
+  final ValueChanged<String> onSelected;
+  final VoidCallback onCustomDateRange;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search alerts, plate, type...',
-        filled: true,
-        fillColor: Colors.white,
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          color: AppColors.primaryColor,
-        ),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Clear search',
-                onPressed: onClear,
-                icon: const Icon(Icons.close_rounded),
+    final items = [
+      const _DateFilterItem(value: 'all', label: 'All dates'),
+      const _DateFilterItem(value: 'today', label: 'Today'),
+      const _DateFilterItem(value: '7d', label: '7 days'),
+      const _DateFilterItem(value: '30d', label: '30 days'),
+      _DateFilterItem(value: 'custom', label: _customLabel()),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: items.map((item) {
+          final selected = selectedFilter == item.value;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: item.value == 'custom'
+                  ? onCustomDateRange
+                  : () => onSelected(item.value),
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primaryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: selected
+                        ? AppColors.primaryColor
+                        : AppColors.cardTint,
+                  ),
+                  boxShadow: selected ? AppDesign.shadowSM : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item.value == 'custom'
+                          ? Icons.date_range_rounded
+                          : selected
+                          ? Icons.check_rounded
+                          : Icons.calendar_today_rounded,
+                      size: 15,
+                      color: selected ? Colors.white : AppColors.primaryColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      item.label,
+                      style: AppTextStyles.caption.copyWith(
+                        color: selected ? Colors.white : AppColors.textPrimary,
+                        fontWeight: selected
+                            ? AppFontWeights.bold
+                            : AppFontWeights.medium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 13,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.cardTint),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.cardTint),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: AppColors.primaryColor,
-            width: 1.4,
+            ),
           ),
-        ),
+        }).toList(),
       ),
     );
   }
+
+  String _customLabel() {
+    if (selectedFilter != 'custom' || dateRange == null) return 'Date range';
+    final format = DateFormat.MMMd();
+    return '${format.format(dateRange!.start)} - ${format.format(dateRange!.end)}';
+  }
+}
+
+class _DateFilterItem {
+  const _DateFilterItem({required this.value, required this.label});
+
+  final String value;
+  final String label;
 }
 
 class _AlertFilterChips extends StatelessWidget {
