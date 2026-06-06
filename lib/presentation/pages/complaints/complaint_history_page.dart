@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
@@ -118,92 +119,102 @@ class _ComplaintHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(record.status);
-    return SoftCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.dangerColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(15),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showComplaintDetails(context, record),
+      child: SoftCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    Icons.report_problem_rounded,
+                    color: AppColors.dangerColor,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.report_problem_rounded,
-                  color: AppColors.dangerColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      record.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.title.copyWith(
-                        fontWeight: AppFontWeights.extraBold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.title.copyWith(
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatTime(record.createdAt),
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(record.createdAt),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              _Pill(
-                icon: Icons.circle_rounded,
-                label: _labelFor(record.status),
-                color: statusColor,
+                _Pill(
+                  icon: Icons.circle_rounded,
+                  label: _labelFor(record.status),
+                  color: statusColor,
+                ),
+              ],
+            ),
+            if (record.message.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                record.message,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(height: 1.35),
               ),
             ],
-          ),
-          if (record.message.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
-              record.message,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(height: 1.35),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (record.category.isNotEmpty)
+                  _Pill(
+                    icon: Icons.category_rounded,
+                    label: record.category,
+                    color: AppColors.primaryColor,
+                  ),
+                if (record.mediaUrl.isNotEmpty)
+                  const _Pill(
+                    icon: Icons.attach_file_rounded,
+                    label: 'Media attached',
+                    color: AppColors.infoColor,
+                  ),
+                if (record.updatedAt != null)
+                  _Pill(
+                    icon: Icons.update_rounded,
+                    label:
+                        'Updated ${DateFormat.MMMd().format(record.updatedAt!)}',
+                    color: AppColors.textSecondary,
+                  ),
+                _Pill(
+                  icon: Icons.open_in_new_rounded,
+                  label: 'View details',
+                  color: statusColor,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (record.category.isNotEmpty)
-                _Pill(
-                  icon: Icons.category_rounded,
-                  label: record.category,
-                  color: AppColors.primaryColor,
-                ),
-              if (record.mediaUrl.isNotEmpty)
-                const _Pill(
-                  icon: Icons.attach_file_rounded,
-                  label: 'Media attached',
-                  color: AppColors.infoColor,
-                ),
-              if (record.updatedAt != null)
-                _Pill(
-                  icon: Icons.update_rounded,
-                  label:
-                      'Updated ${DateFormat.MMMd().format(record.updatedAt!)}',
-                  color: AppColors.textSecondary,
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -220,6 +231,264 @@ class _ComplaintHistoryCard extends StatelessWidget {
     }
     return AppColors.dangerColor;
   }
+}
+
+void _showComplaintDetails(BuildContext context, DriverComplaintRecord record) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => _ComplaintDetailsDialog(record: record),
+  );
+}
+
+class _ComplaintDetailsDialog extends StatelessWidget {
+  const _ComplaintDetailsDialog({required this.record});
+
+  final DriverComplaintRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(record.status);
+    final th = ThemeHelper.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final rows = _complaintDetailRows(record);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: size.height * 0.86,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: th.isDark ? null : AppDesign.shadowLG,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 50,
+                      width: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.dangerColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.report_problem_rounded,
+                        color: AppColors.dangerColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            record.title,
+                            style: AppTextStyles.title.copyWith(
+                              color: th.textPrimary,
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            _formatDetailTime(record.createdAt),
+                            style: AppTextStyles.caption.copyWith(
+                              color: th.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  record.message.isEmpty
+                      ? 'No complaint message was provided.'
+                      : record.message,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _Pill(
+                      icon: Icons.circle_rounded,
+                      label: _labelFor(record.status),
+                      color: statusColor,
+                    ),
+                    if (record.category.isNotEmpty)
+                      _Pill(
+                        icon: Icons.category_rounded,
+                        label: record.category,
+                        color: AppColors.primaryColor,
+                      ),
+                    if (record.mediaUrl.isNotEmpty)
+                      const _Pill(
+                        icon: Icons.attach_file_rounded,
+                        label: 'Media attached',
+                        color: AppColors.infoColor,
+                      ),
+                  ],
+                ),
+                if (record.mediaUrl.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  Text(
+                    'Attached media',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: th.textPrimary,
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ComplaintMediaPreview(url: record.mediaUrl),
+                ],
+                const SizedBox(height: 22),
+                Text(
+                  'Full details',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...rows.map(
+                  (row) => _DetailRow(label: row.key, value: row.value),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('closed') ||
+        normalized.contains('resolved') ||
+        normalized.contains('done')) {
+      return AppColors.secondaryColor;
+    }
+    if (normalized.contains('progress') || normalized.contains('review')) {
+      return AppColors.warningColor;
+    }
+    return AppColors.dangerColor;
+  }
+}
+
+class _ComplaintMediaPreview extends StatelessWidget {
+  const _ComplaintMediaPreview({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 150),
+        color: th.inputFill,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const SizedBox(
+              height: 180,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Padding(
+              padding: const EdgeInsets.all(14),
+              child: SelectableText(
+                url,
+                style: AppTextStyles.caption.copyWith(
+                  color: th.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textSecondary,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          SelectableText(
+            value,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textPrimary,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<MapEntry<String, String>> _complaintDetailRows(
+  DriverComplaintRecord record,
+) {
+  return [
+    MapEntry('Status', _labelFor(record.status)),
+    MapEntry(
+      'Category',
+      record.category.isEmpty ? 'Not specified' : record.category,
+    ),
+    MapEntry('Submitted', _formatDetailTime(record.createdAt)),
+    MapEntry('Last updated', _formatDetailTime(record.updatedAt)),
+    if (record.mediaUrl.isNotEmpty) MapEntry('Media URL', record.mediaUrl),
+    MapEntry('Complaint ID', record.id),
+  ];
 }
 
 class _Pill extends StatelessWidget {
@@ -278,6 +547,11 @@ class _ScrollableEmptyState extends StatelessWidget {
 String _formatTime(DateTime? time) {
   if (time == null) return 'Date unavailable';
   return DateFormat.yMMMd().add_jm().format(time);
+}
+
+String _formatDetailTime(DateTime? time) {
+  if (time == null) return 'Date unavailable';
+  return DateFormat.yMMMMd().add_jm().format(time);
 }
 
 String _labelFor(String value) {
