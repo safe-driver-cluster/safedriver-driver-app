@@ -4,6 +4,7 @@ import '../../../app/routes.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -156,7 +157,7 @@ class _DashboardHome extends StatelessWidget {
     final driver = AppScope.of(context).driver!;
     final l10n = AppLocalizations.of(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 104),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
       children: [
         _DriverOverviewCard(driver: driver, l10n: l10n),
         const SizedBox(height: 16),
@@ -288,15 +289,17 @@ class _DriverOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final statusColor = driver.isOnDuty
         ? AppColors.secondaryColor
         : AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: th.cardBackground,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: AppDesign.shadowSM,
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
       ),
       child: Column(
         children: [
@@ -332,7 +335,7 @@ class _DriverOverviewCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.title.copyWith(
-                        color: AppColors.textPrimary,
+                        color: th.textPrimary,
                         fontWeight: AppFontWeights.extraBold,
                       ),
                     ),
@@ -362,18 +365,15 @@ class _DriverOverviewCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _ScoreBadge(
-                label: l10n.t('safetyScore'),
-                value: driver.safetyScore.toStringAsFixed(0),
-              ),
             ],
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
+              color: th.subtleBackground,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: th.borderColor),
             ),
             child: Row(
               children: [
@@ -394,7 +394,7 @@ class _DriverOverviewCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyMedium.copyWith(
                           fontWeight: AppFontWeights.extraBold,
-                          color: AppColors.textPrimary,
+                          color: th.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -405,53 +405,17 @@ class _DriverOverviewCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
+                          color: th.textSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.keyboard_arrow_right_rounded,
-                  color: AppColors.textSecondary,
+                  color: th.textSecondary,
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScoreBadge extends StatelessWidget {
-  const _ScoreBadge({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryColor.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: AppTextStyles.title.copyWith(
-              color: AppColors.secondaryColor,
-              fontWeight: AppFontWeights.extraBold,
-            ),
-          ),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.secondaryColor,
-              fontSize: 10,
             ),
           ),
         ],

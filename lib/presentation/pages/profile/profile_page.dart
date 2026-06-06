@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
@@ -16,8 +17,9 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final driver = AppScope.of(context).driver!;
     final l10n = AppLocalizations.of(context);
+    final th = ThemeHelper.of(context);
     final body = ListView(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
       children: [
         SoftCard(
           padding: const EdgeInsets.all(14),
@@ -29,13 +31,20 @@ class ProfilePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(driver.fullName, style: AppTextStyles.title),
+                    Text(
+                      driver.fullName,
+                      style: AppTextStyles.title.copyWith(
+                        color: th.textPrimary,
+                      ),
+                    ),
                     const SizedBox(height: 3),
                     Text(
                       driver.email.isEmpty ? driver.phoneNumber : driver.email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption,
+                      style: AppTextStyles.caption.copyWith(
+                        color: th.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     _InlineStatus(
@@ -110,6 +119,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: SoftCard(
@@ -120,13 +130,20 @@ class _InfoRow extends StatelessWidget {
               height: 34,
               width: 34,
               decoration: BoxDecoration(
-                color: AppColors.cardTint,
+                color: th.tintBackground,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: AppColors.primaryColor),
             ),
             const SizedBox(width: 10),
-            Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textSecondary,
+                ),
+              ),
+            ),
             Flexible(
               child: Text(
                 value.isEmpty ? '-' : value,
@@ -134,6 +151,7 @@ class _InfoRow extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textPrimary,
                   fontWeight: AppFontWeights.bold,
                 ),
               ),
@@ -153,9 +171,10 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return CircleAvatar(
       radius: size / 2,
-      backgroundColor: AppColors.cardTint,
+      backgroundColor: th.tintBackground,
       backgroundImage: url == null ? null : NetworkImage(url!),
       child: url == null
           ? const Icon(Icons.person_rounded, color: AppColors.primaryDark)
@@ -172,7 +191,8 @@ class _InlineStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.secondaryColor : AppColors.textSecondary;
+    final th = ThemeHelper.of(context);
+    final color = active ? AppColors.secondaryColor : th.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(

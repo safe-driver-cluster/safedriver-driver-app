@@ -4,6 +4,7 @@ import '../../../app/routes.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -74,7 +75,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return DriverPageShell(
       title: l10n.t('settings'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 96),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
         children: [
           _SectionTitle(title: l10n.t('appPreferences')),
           const SizedBox(height: 8),
@@ -137,10 +138,11 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return Text(
       title,
       style: AppTextStyles.bodyMedium.copyWith(
-        color: AppColors.textSecondary,
+        color: th.textSecondary,
         fontWeight: AppFontWeights.extraBold,
       ),
     );
@@ -174,12 +176,16 @@ class _ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return _TileShell(
       icon: Icons.contrast_rounded,
       child: Row(
         children: [
           Expanded(
-            child: Text(l10n.t('theme'), style: AppTextStyles.bodyMedium),
+            child: Text(
+              l10n.t('theme'),
+              style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
+            ),
           ),
           const SizedBox(width: 12),
           DropdownButton<ThemeMode>(
@@ -222,13 +228,17 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return _TileShell(
       icon: Icons.language_rounded,
       showDivider: false,
       child: Row(
         children: [
           Expanded(
-            child: Text(l10n.t('language'), style: AppTextStyles.bodyMedium),
+            child: Text(
+              l10n.t('language'),
+              style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
+            ),
           ),
           const SizedBox(width: 12),
           DropdownButton<Locale>(
@@ -276,6 +286,7 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final color = danger ? AppColors.dangerColor : AppColors.primaryColor;
     return _TileShell(
       icon: icon,
@@ -295,7 +306,7 @@ class _ActionTile extends StatelessWidget {
                     Text(
                       label,
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: danger ? AppColors.dangerColor : null,
+                        color: danger ? AppColors.dangerColor : th.textPrimary,
                         fontWeight: AppFontWeights.bold,
                       ),
                     ),
@@ -305,7 +316,7 @@ class _ActionTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                        color: th.textSecondary,
                       ),
                     ),
                   ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -40,11 +41,12 @@ class BusesPage extends StatelessWidget {
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
           itemCount: data.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (_, i) {
             final bus = data[i];
+            final th = ThemeHelper.of(context);
             return SoftCard(
               padding: const EdgeInsets.all(13),
               child: Column(
@@ -75,7 +77,9 @@ class BusesPage extends StatelessWidget {
                               _routeLabel(bus, driver.currentRoute),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption,
+                              style: AppTextStyles.caption.copyWith(
+                                color: th.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -91,7 +95,7 @@ class BusesPage extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.cardTint,
+                      color: th.tintBackground,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -244,14 +248,15 @@ class _DetailChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     if (value.trim().isEmpty) return const SizedBox.shrink();
     return Container(
       width: 154,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: th.subtleBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardTint),
+        border: Border.all(color: th.borderColor),
       ),
       child: Row(
         children: [
@@ -269,13 +274,19 @@ class _DetailChip extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTextStyles.caption),
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 1),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
                     fontWeight: AppFontWeights.bold,
                   ),
                 ),
@@ -301,23 +312,24 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     if (value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          Icon(icon, size: 17, color: AppColors.textSecondary),
+          Icon(icon, size: 17, color: th.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Text.rich(
               TextSpan(
                 text: '$label  ',
-                style: AppTextStyles.caption,
+                style: AppTextStyles.caption.copyWith(color: th.textSecondary),
                 children: [
                   TextSpan(
                     text: value,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textPrimary,
+                      color: th.textPrimary,
                       fontWeight: AppFontWeights.bold,
                     ),
                   ),

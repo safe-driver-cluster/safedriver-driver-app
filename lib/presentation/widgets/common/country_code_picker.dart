@@ -1,4 +1,10 @@
+import 'package:country_code_picker/country_code_picker.dart' show codes;
 import 'package:flutter/material.dart';
+
+import '../../../core/constants/app_font_weights.dart';
+import '../../../core/constants/color_constants.dart';
+import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 
 class PhoneNumberField extends StatelessWidget {
   const PhoneNumberField({
@@ -18,29 +24,65 @@ class PhoneNumberField extends StatelessWidget {
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
 
+  static const _countryFilter = ['LK', 'IN', 'BD', 'PK', 'NP', 'MV'];
+
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    final countries = codes
+        .where((country) => _countryFilter.contains(country['code']))
+        .toList();
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _showPicker(context),
-          child: Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color:
-                  Theme.of(context).inputDecorationTheme.fillColor ??
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Text('🇱🇰'),
-                const SizedBox(width: 6),
-                Text(selectedCountryCode),
-                const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-              ],
+        Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: th.inputFill,
+            borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+            border: Border.all(color: th.borderColor),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedCountryCode,
+              borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+              dropdownColor: th.cardBackground,
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: th.textSecondary,
+              ),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: th.textPrimary,
+                fontWeight: AppFontWeights.bold,
+              ),
+              selectedItemBuilder: (context) {
+                return countries.map((country) {
+                  final countryCode = country['code'] ?? '';
+                  final dialCode = country['dial_code'] ?? '';
+                  return _SelectedCountryCode(
+                    flag: _flagFor(countryCode),
+                    dialCode: dialCode,
+                  );
+                }).toList();
+              },
+              items: countries.map((country) {
+                final countryCode = country['code'] ?? '';
+                final dialCode = country['dial_code'] ?? '';
+                final countryName = country['name'] ?? countryCode;
+                return DropdownMenuItem<String>(
+                  value: dialCode,
+                  child: _CountryCodeOption(
+                    flag: _flagFor(countryCode),
+                    dialCode: dialCode,
+                    countryName: countryName,
+                  ),
+                );
+              }).toList(),
+              onChanged: (dialCode) {
+                if (dialCode == null || dialCode.isEmpty) return;
+                onCountryCodeChanged(dialCode);
+              },
             ),
           ),
         ),
@@ -53,7 +95,29 @@ class PhoneNumberField extends StatelessWidget {
             onChanged: onChanged,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.phone_iphone_rounded),
-              labelText: labelText,
+              hintText: labelText,
+              floatingLabelBehavior: FloatingLabelBehavior.never,
+              filled: true,
+              fillColor: th.inputFill,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                borderSide: BorderSide(color: th.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                borderSide: BorderSide(color: th.primary, width: 1.4),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                borderSide: const BorderSide(color: AppColors.dangerColor),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                borderSide: const BorderSide(
+                  color: AppColors.dangerColor,
+                  width: 1.4,
+                ),
+              ),
             ),
           ),
         ),
@@ -61,21 +125,77 @@ class PhoneNumberField extends StatelessWidget {
     );
   }
 
-  void _showPicker(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: ListTile(
-          leading: const Text('🇱🇰', style: TextStyle(fontSize: 24)),
-          title: const Text('Sri Lanka'),
-          subtitle: const Text('+94'),
-          trailing: const Icon(Icons.check_circle_rounded),
-          onTap: () {
-            onCountryCodeChanged('+94');
-            Navigator.pop(context);
-          },
+  String _flagFor(String countryCode) {
+    if (countryCode.length != 2) return countryCode;
+    final upper = countryCode.toUpperCase();
+    final first = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final second = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    return String.fromCharCodes([first, second]);
+  }
+}
+
+class _CountryCodeOption extends StatelessWidget {
+  const _CountryCodeOption({
+    required this.flag,
+    required this.dialCode,
+    required this.countryName,
+  });
+
+  final String flag;
+  final String dialCode;
+  final String countryName;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(flag, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 6),
+        Text(
+          dialCode,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: th.textPrimary,
+            fontWeight: AppFontWeights.bold,
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            countryName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectedCountryCode extends StatelessWidget {
+  const _SelectedCountryCode({required this.flag, required this.dialCode});
+
+  final String flag;
+  final String dialCode;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(flag, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 6),
+        Text(
+          dialCode,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: th.textPrimary,
+            fontWeight: AppFontWeights.bold,
+          ),
+        ),
+      ],
     );
   }
 }

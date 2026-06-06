@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -124,7 +126,7 @@ class _AlertsPageState extends State<AlertsPage> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 96),
+                    padding: const EdgeInsets.only(bottom: 20),
                     child: EmptyState(
                       message: data.isEmpty
                           ? l10n.t('noAlerts')
@@ -135,7 +137,7 @@ class _AlertsPageState extends State<AlertsPage> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
                   sliver: SliverList.separated(
                     itemCount: filtered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -282,9 +284,10 @@ class _AlertControlsHeader extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final th = ThemeHelper.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: th.pageBackground,
         boxShadow: overlapsContent
             ? [
                 BoxShadow(
@@ -341,6 +344,7 @@ class _AlertDateFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final items = [
       const _DateFilterItem(value: 'all', label: 'All dates'),
       const _DateFilterItem(value: 'today', label: 'Today'),
@@ -367,14 +371,12 @@ class _AlertDateFilterChips extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primaryColor : Colors.white,
+                  color: selected ? AppColors.primaryColor : th.cardBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: selected
-                        ? AppColors.primaryColor
-                        : AppColors.cardTint,
+                    color: selected ? AppColors.primaryColor : th.borderColor,
                   ),
-                  boxShadow: selected ? AppDesign.shadowSM : null,
+                  boxShadow: selected || th.isDark ? null : AppDesign.shadowSM,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -392,7 +394,7 @@ class _AlertDateFilterChips extends StatelessWidget {
                     Text(
                       item.label,
                       style: AppTextStyles.caption.copyWith(
-                        color: selected ? Colors.white : AppColors.textPrimary,
+                        color: selected ? Colors.white : th.textPrimary,
                         fontWeight: selected
                             ? AppFontWeights.bold
                             : AppFontWeights.medium,
@@ -435,6 +437,7 @@ class _AlertFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -453,14 +456,12 @@ class _AlertFilterChips extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primaryColor : Colors.white,
+                  color: selected ? AppColors.primaryColor : th.cardBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: selected
-                        ? AppColors.primaryColor
-                        : AppColors.cardTint,
+                    color: selected ? AppColors.primaryColor : th.borderColor,
                   ),
-                  boxShadow: selected ? AppDesign.shadowSM : null,
+                  boxShadow: selected || th.isDark ? null : AppDesign.shadowSM,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -476,7 +477,7 @@ class _AlertFilterChips extends StatelessWidget {
                     Text(
                       label,
                       style: AppTextStyles.caption.copyWith(
-                        color: selected ? Colors.white : AppColors.textPrimary,
+                        color: selected ? Colors.white : th.textPrimary,
                         fontWeight: selected
                             ? AppFontWeights.bold
                             : AppFontWeights.medium,
@@ -531,83 +532,91 @@ class _AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _colorFor(alert.type);
-    return SoftCard(
-      padding: const EdgeInsets.all(13),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(15),
+    final th = ThemeHelper.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showAlertDetails(context, alert),
+      child: SoftCard(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(_iconFor(alert.type), color: color),
                 ),
-                child: Icon(_iconFor(alert.type), color: color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      alert.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.title.copyWith(
-                        fontWeight: AppFontWeights.extraBold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alert.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.title.copyWith(
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatTime(alert.createdAt),
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatTime(alert.createdAt),
+                        style: AppTextStyles.caption.copyWith(
+                          color: th.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              _Pill(label: alert.priority, color: color),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            alert.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textPrimary,
+                _Pill(label: alert.priority, color: color),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (alert.type.isNotEmpty)
-                _InfoChip(
-                  icon: Icons.category_rounded,
-                  label: _labelFor(alert.type),
-                  color: color,
-                ),
-              if (alert.numberPlate.isNotEmpty)
-                _InfoChip(
-                  icon: Icons.confirmation_number_rounded,
-                  label: alert.numberPlate,
-                  color: AppColors.primaryColor,
-                ),
-              if (alert.tag.isNotEmpty)
-                _InfoChip(
-                  icon: Icons.sell_rounded,
-                  label: alert.tag,
+            const SizedBox(height: 10),
+            Text(
+              alert.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (alert.type.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.category_rounded,
+                    label: _labelFor(alert.type),
+                    color: color,
+                  ),
+                if (alert.numberPlate.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.confirmation_number_rounded,
+                    label: alert.numberPlate,
+                    color: AppColors.primaryColor,
+                  ),
+                if (alert.tag.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.sell_rounded,
+                    label: alert.tag,
+                    color: AppColors.textSecondary,
+                  ),
+                const _InfoChip(
+                  icon: Icons.touch_app_rounded,
+                  label: 'Details',
                   color: AppColors.textSecondary,
                 ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -642,6 +651,307 @@ class _AlertCard extends StatelessWidget {
     if (time == null) return 'Time unavailable';
     return DateFormat.yMMMd().add_jm().format(time);
   }
+}
+
+void _showAlertDetails(BuildContext context, DriverAlert alert) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => _AlertDetailsDialog(alert: alert),
+  );
+}
+
+class _AlertDetailsDialog extends StatelessWidget {
+  const _AlertDetailsDialog({required this.alert});
+
+  final DriverAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _detailColorFor(alert.type);
+    final th = ThemeHelper.of(context);
+    final rows = _detailRows(alert);
+    final size = MediaQuery.sizeOf(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: size.height * 0.86,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: th.isDark ? null : AppDesign.shadowLG,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+              children: [
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(_detailIconFor(alert.type), color: color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.title,
+                            style: AppTextStyles.title.copyWith(
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _formatDetailDate(alert.createdAt),
+                            style: AppTextStyles.caption.copyWith(
+                              color: th.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  alert.description,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoChip(
+                      icon: Icons.priority_high_rounded,
+                      label: alert.priority,
+                      color: color,
+                    ),
+                    if (alert.status.isNotEmpty)
+                      _InfoChip(
+                        icon: Icons.radio_button_checked_rounded,
+                        label: alert.status,
+                        color: AppColors.primaryColor,
+                      ),
+                    if (alert.numberPlate.isNotEmpty)
+                      _InfoChip(
+                        icon: Icons.confirmation_number_rounded,
+                        label: alert.numberPlate,
+                        color: AppColors.primaryColor,
+                      ),
+                  ],
+                ),
+                if (alert.evidenceUrl.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  Text(
+                    'Evidence',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 180),
+                      color: AppColors.cardTint.withValues(alpha: 0.28),
+                      child: Image.network(
+                        alert.evidenceUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const SizedBox(
+                            height: 220,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return SizedBox(
+                            height: 180,
+                            child: Center(
+                              child: Text(
+                                'Evidence image could not be loaded',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 22),
+                Text(
+                  'Full details',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...rows.map(
+                  (row) => _DetailRow(label: row.key, value: row.value),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textSecondary,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          SelectableText(
+            value,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textPrimary,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<MapEntry<String, String>> _detailRows(DriverAlert alert) {
+  final rows = <MapEntry<String, String>>[
+    if (alert.driverRef.isNotEmpty) MapEntry('Driver', alert.driverRef),
+    if (alert.type.isNotEmpty) MapEntry('Type', _humanize(alert.type)),
+    if (alert.tag.isNotEmpty) MapEntry('Tag', alert.tag),
+    if (alert.numberPlate.isNotEmpty)
+      MapEntry('Number plate', alert.numberPlate),
+    MapEntry('Status', alert.status),
+    MapEntry('Priority', alert.priority),
+    MapEntry('Time', _formatDetailDate(alert.createdAt)),
+  ];
+
+  final hiddenEvidenceKeys = {
+    'evidence',
+    'evidenceUrl',
+    'imageUrl',
+    'photoUrl',
+    'mediaUrl',
+    'attachmentUrl',
+  };
+  final existingLabels = rows.map((row) => row.key.toLowerCase()).toSet();
+  final rawEntries = alert.raw.entries.toList()
+    ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
+  for (final entry in rawEntries) {
+    if (hiddenEvidenceKeys.contains(entry.key)) continue;
+    final label = _humanize(entry.key);
+    if (existingLabels.contains(label.toLowerCase())) continue;
+    final value = _formatDetailValue(entry.value);
+    if (value.isEmpty) continue;
+    rows.add(MapEntry(label, value));
+    existingLabels.add(label.toLowerCase());
+  }
+  return rows;
+}
+
+String _formatDetailValue(dynamic value) {
+  if (value == null) return '';
+  if (value is Timestamp) return _formatDetailDate(value.toDate());
+  if (value is DateTime) return _formatDetailDate(value);
+  if (value is GeoPoint) {
+    return '${value.latitude.toStringAsFixed(6)}, ${value.longitude.toStringAsFixed(6)}';
+  }
+  if (value is Iterable) {
+    return value
+        .map(_formatDetailValue)
+        .where((item) => item.isNotEmpty)
+        .join(', ');
+  }
+  if (value is Map) {
+    return value.entries
+        .map(
+          (entry) =>
+              '${_humanize(entry.key.toString())}: ${_formatDetailValue(entry.value)}',
+        )
+        .join('\n');
+  }
+  return value.toString();
+}
+
+String _formatDetailDate(DateTime? time) {
+  if (time == null) return 'Time unavailable';
+  return DateFormat.yMMMd().add_jms().format(time);
+}
+
+String _humanize(String value) {
+  if (value.trim().isEmpty) return 'Alert';
+  return value
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .split(' ')
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+Color _detailColorFor(String type) {
+  final normalized = type.toLowerCase();
+  if (normalized.contains('smoking')) return AppColors.dangerColor;
+  if (normalized.contains('phone')) return AppColors.warningColor;
+  if (normalized.contains('sleep')) return AppColors.purpleColor;
+  return AppColors.primaryColor;
+}
+
+IconData _detailIconFor(String type) {
+  final normalized = type.toLowerCase();
+  if (normalized.contains('smoking')) return Icons.smoke_free_rounded;
+  if (normalized.contains('phone')) return Icons.phone_android_rounded;
+  if (normalized.contains('sleep')) return Icons.bedtime_rounded;
+  return Icons.warning_rounded;
 }
 
 class _Pill extends StatelessWidget {

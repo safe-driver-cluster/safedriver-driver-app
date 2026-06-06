@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/constants/app_font_weights.dart';
+import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../data/services/driver_auth_service.dart';
@@ -22,7 +25,8 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final _otp = TextEditingController();
+  final _otpControllers = List.generate(6, (_) => TextEditingController());
+  final _otpFocusNodes = List.generate(6, (_) => FocusNode());
   final _viewModel = AuthViewModel();
   late OtpStartResult _result = widget.result;
   Timer? _timer;
@@ -42,7 +46,12 @@ class _OtpPageState extends State<OtpPage> {
   @override
   void dispose() {
     _timer?.cancel();
-    _otp.dispose();
+    for (final controller in _otpControllers) {
+      controller.dispose();
+    }
+    for (final node in _otpFocusNodes) {
+      node.dispose();
+    }
     _viewModel.dispose();
     super.dispose();
   }
@@ -67,14 +76,14 @@ class _OtpPageState extends State<OtpPage> {
     }
 
     final l10n = AppLocalizations.of(context);
-    final code = _otp.text.trim();
+    final code = _otpCode;
     debugPrint('[DriverOtpPage._verify] pressed');
     debugPrint(
       '[DriverOtpPage._verify] verificationId=${_result.verificationId}',
     );
     debugPrint('[DriverOtpPage._verify] phone=${_result.phoneNumber}');
     debugPrint('[DriverOtpPage._verify] otp length=${code.length}');
-    if (_otp.text.trim().length < 6) {
+    if (code.length < 6) {
       debugPrint('[DriverOtpPage._verify] OTP validation failed');
       final message = l10n.t('otpRequired');
       setState(() => _errorMessage = message);
@@ -137,7 +146,7 @@ class _OtpPageState extends State<OtpPage> {
     debugPrint(
       '[DriverOtpPage._resend] success verificationId=${next.verificationId}, phone=${next.phoneNumber}',
     );
-    _otp.clear();
+    _clearOtp();
     setState(() {
       _errorMessage = null;
       _result = next;
@@ -152,6 +161,53 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
+  String get _otpCode => _otpControllers.map((item) => item.text).join();
+
+  void _clearOtp() {
+    for (final controller in _otpControllers) {
+      controller.clear();
+    }
+    _otpFocusNodes.first.requestFocus();
+  }
+
+  void _handleOtpChanged(String value, int index) {
+    if (_errorMessage != null) {
+      setState(() => _errorMessage = null);
+    }
+    if (value.length > 1) {
+      _pasteOtp(value);
+      return;
+    }
+    if (value.isNotEmpty && index < _otpFocusNodes.length - 1) {
+      _otpFocusNodes[index + 1].requestFocus();
+    }
+    if (_otpCode.length == 6) {
+      _otpFocusNodes[index].unfocus();
+    }
+  }
+
+  void _pasteOtp(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    for (var i = 0; i < _otpControllers.length; i++) {
+      _otpControllers[i].text = i < digits.length ? digits[i] : '';
+    }
+    final nextIndex = digits.length >= 6 ? 5 : digits.length;
+    _otpFocusNodes[nextIndex.clamp(0, 5)].requestFocus();
+    if (digits.length >= 6) _otpFocusNodes.last.unfocus();
+  }
+
+  KeyEventResult _handleOtpKey(FocusNode node, KeyEvent event, int index) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.backspace ||
+        _otpControllers[index].text.isNotEmpty ||
+        index == 0) {
+      return KeyEventResult.ignored;
+    }
+    _otpFocusNodes[index - 1].requestFocus();
+    _otpControllers[index - 1].clear();
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -162,68 +218,166 @@ class _OtpPageState extends State<OtpPage> {
         return DriverPageShell(
           title: l10n.t('otpTitle'),
           subtitle: _result.phoneNumber,
-          body: Padding(
-            padding: const EdgeInsets.all(AppDesign.spaceXL),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppDesign.spaceXL),
-                Icon(Icons.verified_user_rounded, size: 74, color: th.primary),
-                const SizedBox(height: AppDesign.spaceXL),
-                Text(
-                  l10n.t('otpSubtitle'),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: th.textSecondary,
+          body: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: th.cardBackground,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppDesign.spaceXL,
+                        AppDesign.space2XL,
+                        AppDesign.spaceXL,
+                        AppDesign.spaceXL,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            child: Container(
+                              height: 84,
+                              width: 84,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryColor.withValues(
+                                  alpha: 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.verified_user_rounded,
+                                size: 46,
+                                color: th.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppDesign.spaceXL),
+                          Text(
+                            l10n.t('otpSubtitle'),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: th.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: AppDesign.spaceSM),
+                          Text(
+                            _result.phoneNumber,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: th.textPrimary,
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                          const SizedBox(height: AppDesign.space2XL),
+                          _OtpBoxes(
+                            controllers: _otpControllers,
+                            focusNodes: _otpFocusNodes,
+                            onChanged: _handleOtpChanged,
+                            onKeyEvent: _handleOtpKey,
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: AppDesign.spaceLG),
+                            AuthErrorMessage(message: _errorMessage!),
+                          ],
+                          const SizedBox(height: AppDesign.space2XL),
+                          GradientButton(
+                            label: l10n.t('verifyLogin'),
+                            icon: Icons.login_rounded,
+                            isLoading: _viewModel.isLoading || _isVerifying,
+                            onPressed: _isVerifying ? null : _verify,
+                          ),
+                          const SizedBox(height: AppDesign.spaceLG),
+                          TextButton.icon(
+                            onPressed: _seconds == 0 && !_viewModel.isLoading
+                                ? _resend
+                                : null,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: Text(
+                              _seconds == 0
+                                  ? l10n.t('resendOtp')
+                                  : '${l10n.t('resendIn')} $_seconds s',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppDesign.space2XL),
-                TextField(
-                  controller: _otp,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.headline3.copyWith(
-                    color: th.textPrimary,
-                    letterSpacing: 8,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: l10n.t('otpCode'),
-                    counterText: '',
-                  ),
-                  onChanged: (_) {
-                    if (_errorMessage != null) {
-                      setState(() => _errorMessage = null);
-                    }
-                  },
-                ),
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: AppDesign.spaceLG),
-                  AuthErrorMessage(message: _errorMessage!),
-                ],
-                const SizedBox(height: AppDesign.space2XL),
-                GradientButton(
-                  label: l10n.t('verifyLogin'),
-                  icon: Icons.login_rounded,
-                  isLoading: _viewModel.isLoading || _isVerifying,
-                  onPressed: _isVerifying ? null : _verify,
-                ),
-                const SizedBox(height: AppDesign.spaceLG),
-                TextButton(
-                  onPressed: _seconds == 0 && !_viewModel.isLoading
-                      ? _resend
-                      : null,
-                  child: Text(
-                    _seconds == 0
-                        ? l10n.t('resendOtp')
-                        : '${l10n.t('resendIn')} $_seconds s',
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _OtpBoxes extends StatelessWidget {
+  const _OtpBoxes({
+    required this.controllers,
+    required this.focusNodes,
+    required this.onChanged,
+    required this.onKeyEvent,
+  });
+
+  final List<TextEditingController> controllers;
+  final List<FocusNode> focusNodes;
+  final void Function(String value, int index) onChanged;
+  final KeyEventResult Function(FocusNode node, KeyEvent event, int index)
+  onKeyEvent;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Row(
+      children: List.generate(controllers.length, (index) {
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: index == controllers.length - 1 ? 0 : 8,
+            ),
+            child: Focus(
+              onKeyEvent: (node, event) => onKeyEvent(node, event, index),
+              child: TextField(
+                controller: controllers[index],
+                focusNode: focusNodes[index],
+                keyboardType: TextInputType.number,
+                textInputAction: index == controllers.length - 1
+                    ? TextInputAction.done
+                    : TextInputAction.next,
+                textAlign: TextAlign.center,
+                maxLength: 1,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: AppTextStyles.headline3.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  filled: true,
+                  fillColor: th.inputFill,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                    borderSide: BorderSide(color: th.borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppDesign.radiusMD),
+                    borderSide: BorderSide(color: th.primary, width: 1.6),
+                  ),
+                ),
+                onChanged: (value) => onChanged(value, index),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
