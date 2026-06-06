@@ -68,8 +68,15 @@ class DriverDataService {
             debugPrint(
               '[DriverDataService.alerts.doc] source=$key path=$docKey data=${doc.data()}',
             );
+            final alert = DriverAlert.fromDoc(doc);
+            if (!_isAlertForLoggedDriver(alert, driverId)) {
+              debugPrint(
+                '[DriverDataService.alerts.skip] source=$key path=$docKey alertDriver=${alert.driverRef} loggedDriver=$driverId',
+              );
+              continue;
+            }
             nextKeys.add(docKey);
-            alertsByPath[docKey] = DriverAlert.fromDoc(doc);
+            alertsByPath[docKey] = alert;
           }
           sourceKeys[key] = nextKeys;
           pendingInitialSources.remove(key);
@@ -90,11 +97,11 @@ class DriverDataService {
       if (started) return;
       started = true;
       debugPrint(
-        '[DriverDataService.alerts.start] driver=$driverId bus=${driver.currentBusId}',
+        '[DriverDataService.alerts.start] loggedDriver=$driverId bus=${driver.currentBusId}',
       );
 
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final dateKeys = List.generate(16, (index) {
+      final dateKeys = List.generate(32, (index) {
         final date = tomorrow.subtract(Duration(days: index));
         return _dateKey(date);
       });
@@ -104,17 +111,24 @@ class DriverDataService {
       );
 
       listenTo(
-        'flat_driverId',
+        'flat_driverId:$driverId',
         _firestore
             .collection('alerts')
             .where('driverId', isEqualTo: driverId)
+            .limit(50),
+      );
+      listenTo(
+        'flat_driver:$driverId',
+        _firestore
+            .collection('alerts')
+            .where('driver', isEqualTo: driverId)
             .limit(50),
       );
 
       for (final deviceId in deviceIds) {
         for (final dateKey in dateKeys) {
           listenTo(
-            'device:$deviceId/$dateKey',
+            'device:$deviceId/$dateKey:driver',
             _firestore
                 .collection('alerts')
                 .doc(deviceId)
@@ -122,17 +136,16 @@ class DriverDataService {
                 .where('driver', isEqualTo: driverId)
                 .limit(50),
           );
+          listenTo(
+            'device:$deviceId/$dateKey:driverId',
+            _firestore
+                .collection('alerts')
+                .doc(deviceId)
+                .collection(dateKey)
+                .where('driverId', isEqualTo: driverId)
+                .limit(50),
+          );
         }
-      }
-
-      for (final dateKey in dateKeys) {
-        listenTo(
-          'group:$dateKey',
-          _firestore
-              .collectionGroup(dateKey)
-              .where('driver', isEqualTo: driverId)
-              .limit(50),
-        );
       }
     }
 
@@ -145,6 +158,10 @@ class DriverDataService {
     };
 
     return controller.stream;
+  }
+
+  bool _isAlertForLoggedDriver(DriverAlert alert, String loggedDriverId) {
+    return alert.driverRef.trim() == loggedDriverId;
   }
 
   Future<Set<String>> _alertDeviceIdsFor(DriverProfile driver) async {
@@ -201,6 +218,17 @@ class DriverDataService {
     );
     for (final doc in byBusNumber.docs) {
       await addFromDoc(doc, doc.reference.path);
+    }
+
+    final alertDeviceDocs = await _firestore
+        .collection('alerts')
+        .limit(50)
+        .get();
+    debugPrint(
+      '[DriverDataService.alerts.deviceLookup] alerts roots count=${alertDeviceDocs.docs.length}',
+    );
+    for (final doc in alertDeviceDocs.docs) {
+      ids.add(doc.id);
     }
 
     return ids;

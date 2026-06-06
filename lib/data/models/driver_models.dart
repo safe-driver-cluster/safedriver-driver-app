@@ -253,7 +253,10 @@ class DriverAlert {
     required this.type,
     required this.tag,
     required this.numberPlate,
+    required this.driverRef,
+    required this.evidenceUrl,
     required this.createdAt,
+    required this.raw,
   });
 
   final String id;
@@ -264,7 +267,10 @@ class DriverAlert {
   final String type;
   final String tag;
   final String numberPlate;
+  final String driverRef;
+  final String evidenceUrl;
   final DateTime? createdAt;
+  final Map<String, dynamic> raw;
 
   factory DriverAlert.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -285,10 +291,22 @@ class DriverAlert {
         'number_plate',
         'numberPlate',
         'busNumber',
+        'busNumberPlate',
+        'plateNumber',
+      ]),
+      driverRef: readString(data, ['driver', 'driverId', 'employeeId']),
+      evidenceUrl: readString(data, [
+        'evidence',
+        'evidenceUrl',
+        'imageUrl',
+        'photoUrl',
+        'mediaUrl',
+        'attachmentUrl',
       ]),
       createdAt: readDate(
         data['createdAt'] ?? data['timestamp'] ?? data['time'],
       ),
+      raw: data,
     );
   }
 

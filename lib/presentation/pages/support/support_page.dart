@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -106,7 +107,7 @@ class _SupportPageState extends State<SupportPage> {
         ),
       ],
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
         children: [
           _HeroCard(driverName: driver.fullName),
           const SizedBox(height: 12),
@@ -251,15 +252,17 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Ink(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: th.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: AppDesign.shadowSM,
+          border: Border.all(color: th.borderColor),
+          boxShadow: th.isDark ? null : AppDesign.shadowSM,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,6 +282,7 @@ class _QuickActionCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bodyMedium.copyWith(
+                color: th.textPrimary,
                 fontWeight: AppFontWeights.bold,
               ),
             ),
@@ -287,9 +291,7 @@ class _QuickActionCard extends StatelessWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.caption.copyWith(color: th.textSecondary),
             ),
           ],
         ),
@@ -323,6 +325,7 @@ class _SupportRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final selectedCategory = categories.firstWhere(
       (item) => item == category,
       orElse: () => categories.first,
@@ -348,7 +351,10 @@ class _SupportRequestCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text('Category', style: AppTextStyles.caption),
+          Text(
+            'Category',
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -363,7 +369,10 @@ class _SupportRequestCard extends StatelessWidget {
             }).toList(),
           ),
           const SizedBox(height: 14),
-          Text('Priority', style: AppTextStyles.caption),
+          Text(
+            'Priority',
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
           const SizedBox(height: 8),
           Row(
             children: priorities.map((item) {
@@ -397,15 +406,15 @@ class _SupportRequestCard extends StatelessWidget {
               hintText: 'Example: My assigned bus is not showing today.',
               alignLabelWithHint: true,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: th.inputFill,
               contentPadding: const EdgeInsets.all(16),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: AppColors.cardTint),
+                borderSide: BorderSide(color: th.borderColor),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: AppColors.cardTint),
+                borderSide: BorderSide(color: th.borderColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -436,6 +445,7 @@ class _FaqSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return SoftCard(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -461,7 +471,7 @@ class _FaqSection extends StatelessWidget {
                   child: Text(
                     item.body,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: th.textSecondary,
                     ),
                   ),
                 ),
@@ -487,6 +497,7 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -494,12 +505,12 @@ class _CategoryChip extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primaryColor : Colors.white,
+          color: selected ? AppColors.primaryColor : th.inputFill,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? AppColors.primaryColor : AppColors.cardTint,
+            color: selected ? AppColors.primaryColor : th.borderColor,
           ),
-          boxShadow: selected ? AppDesign.shadowSM : null,
+          boxShadow: selected || th.isDark ? null : AppDesign.shadowSM,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -511,7 +522,7 @@ class _CategoryChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected
                     ? Colors.white.withValues(alpha: 0.2)
-                    : AppColors.surfaceLight,
+                    : th.subtleBackground,
                 shape: BoxShape.circle,
               ),
               child: selected
@@ -526,7 +537,7 @@ class _CategoryChip extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.caption.copyWith(
-                color: selected ? Colors.white : AppColors.textPrimary,
+                color: selected ? Colors.white : th.textPrimary,
                 fontWeight: selected
                     ? AppFontWeights.bold
                     : AppFontWeights.medium,
@@ -556,6 +567,7 @@ class _PriorityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final activeColor = urgent ? AppColors.dangerColor : AppColors.primaryColor;
     return InkWell(
       onTap: onTap,
@@ -565,10 +577,10 @@ class _PriorityChip extends StatelessWidget {
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? activeColor.withValues(alpha: 0.12) : Colors.white,
+          color: selected ? activeColor.withValues(alpha: 0.12) : th.inputFill,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? activeColor : AppColors.cardTint,
+            color: selected ? activeColor : th.borderColor,
             width: selected ? 1.4 : 1,
           ),
         ),
@@ -578,7 +590,7 @@ class _PriorityChip extends StatelessWidget {
             Icon(
               selected ? Icons.check_circle_rounded : icon,
               size: 18,
-              color: selected ? activeColor : AppColors.textSecondary,
+              color: selected ? activeColor : th.textSecondary,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -587,7 +599,7 @@ class _PriorityChip extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: selected ? activeColor : AppColors.textPrimary,
+                  color: selected ? activeColor : th.textPrimary,
                   fontWeight: AppFontWeights.bold,
                 ),
               ),

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -83,10 +84,11 @@ class _ComplaintPageState extends State<ComplaintPage> {
 
   Future<void> _showMediaPicker() async {
     final l10n = AppLocalizations.of(context);
+    final th = ThemeHelper.of(context);
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: th.cardBackground,
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
@@ -148,7 +150,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
         ),
       ],
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 96),
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
         children: [
           _ComplaintHero(title: l10n.t('submitComplaint')),
           const SizedBox(height: 12),
@@ -162,7 +164,7 @@ class _ComplaintPageState extends State<ComplaintPage> {
                   Text(
                     'Complaint type',
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: ThemeHelper.of(context).textSecondary,
                       fontWeight: AppFontWeights.bold,
                     ),
                   ),
@@ -237,12 +239,13 @@ class _ComplaintPageState extends State<ComplaintPage> {
     String? hintText,
     bool alignLabelWithHint = false,
   }) {
+    final th = ThemeHelper.of(context);
     return InputDecoration(
       labelText: labelText,
       hintText: hintText,
       alignLabelWithHint: alignLabelWithHint,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: th.inputFill,
       prefixIcon: Padding(
         padding: EdgeInsets.only(bottom: alignLabelWithHint ? 72 : 0),
         child: Icon(icon, color: AppColors.primaryColor),
@@ -250,11 +253,11 @@ class _ComplaintPageState extends State<ComplaintPage> {
       contentPadding: const EdgeInsets.all(16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.cardTint),
+        borderSide: BorderSide(color: th.borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.cardTint),
+        borderSide: BorderSide(color: th.borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
@@ -339,6 +342,7 @@ class _ComplaintTypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -346,12 +350,12 @@ class _ComplaintTypeChip extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.dangerColor : Colors.white,
+          color: selected ? AppColors.dangerColor : th.inputFill,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? AppColors.dangerColor : AppColors.cardTint,
+            color: selected ? AppColors.dangerColor : th.borderColor,
           ),
-          boxShadow: selected ? AppDesign.shadowSM : null,
+          boxShadow: selected || th.isDark ? null : AppDesign.shadowSM,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -363,7 +367,7 @@ class _ComplaintTypeChip extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.caption.copyWith(
-                color: selected ? Colors.white : AppColors.textPrimary,
+                color: selected ? Colors.white : th.textPrimary,
                 fontWeight: selected
                     ? AppFontWeights.bold
                     : AppFontWeights.medium,
@@ -395,13 +399,14 @@ class _MediaBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: th.inputFill,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardTint),
+        border: Border.all(color: th.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,13 +434,14 @@ class _MediaBox extends StatelessWidget {
                     Text(
                       title,
                       style: AppTextStyles.bodyMedium.copyWith(
+                        color: th.textPrimary,
                         fontWeight: AppFontWeights.bold,
                       ),
                     ),
                     Text(
                       'Optional photo evidence',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                        color: th.textSecondary,
                       ),
                     ),
                   ],
@@ -496,8 +502,8 @@ class _MediaBox extends StatelessWidget {
                   label: Text(addLabel),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryColor,
-                    side: const BorderSide(color: AppColors.cardTint),
-                    backgroundColor: AppColors.surfaceLight,
+                    side: BorderSide(color: th.borderColor),
+                    backgroundColor: th.subtleBackground,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -534,15 +540,16 @@ class _PickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: th.subtleBackground,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.cardTint),
+          border: Border.all(color: th.borderColor),
         ),
         child: Column(
           children: [
@@ -559,6 +566,7 @@ class _PickerTile extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.bodyMedium.copyWith(
+                color: th.textPrimary,
                 fontWeight: AppFontWeights.bold,
               ),
             ),

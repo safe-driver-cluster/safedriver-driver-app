@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -113,7 +114,7 @@ class _RatingsPageState extends State<RatingsPage> {
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 96),
+                      padding: const EdgeInsets.only(bottom: 20),
                       child: EmptyState(
                         message: data.isEmpty
                             ? l10n.t('noRatings')
@@ -124,7 +125,7 @@ class _RatingsPageState extends State<RatingsPage> {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                     sliver: SliverList.separated(
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -163,6 +164,7 @@ class _RatingsSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final liveAverage = feedback.isEmpty
         ? driver.rating
         : feedback.map((item) => item.rating).reduce((a, b) => a + b) /
@@ -204,7 +206,7 @@ class _RatingsSummary extends StatelessWidget {
                         Text(
                           liveAverage.toStringAsFixed(1),
                           style: AppTextStyles.headline2.copyWith(
-                            color: AppColors.textPrimary,
+                            color: th.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -280,6 +282,7 @@ class _RatingFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final items = ['all', '5', '4', '3', '2', '1'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -301,14 +304,12 @@ class _RatingFilterChips extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primaryColor : Colors.white,
+                  color: selected ? AppColors.primaryColor : th.cardBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: selected
-                        ? AppColors.primaryColor
-                        : AppColors.cardTint,
+                    color: selected ? AppColors.primaryColor : th.borderColor,
                   ),
-                  boxShadow: selected ? AppDesign.shadowSM : null,
+                  boxShadow: selected || th.isDark ? null : AppDesign.shadowSM,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -322,7 +323,7 @@ class _RatingFilterChips extends StatelessWidget {
                     Text(
                       item == 'all' ? 'All ratings' : '$item star',
                       style: AppTextStyles.caption.copyWith(
-                        color: selected ? Colors.white : AppColors.textPrimary,
+                        color: selected ? Colors.white : th.textPrimary,
                         fontWeight: selected
                             ? AppFontWeights.bold
                             : AppFontWeights.medium,
@@ -332,9 +333,7 @@ class _RatingFilterChips extends StatelessWidget {
                     Text(
                       '$count',
                       style: AppTextStyles.caption.copyWith(
-                        color: selected
-                            ? Colors.white70
-                            : AppColors.textSecondary,
+                        color: selected ? Colors.white70 : th.textSecondary,
                         fontWeight: AppFontWeights.bold,
                       ),
                     ),
@@ -358,6 +357,7 @@ class _FeedbackCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final rating = feedback.rating.clamp(0, 5);
     final color = _colorFor(rating);
+    final th = ThemeHelper.of(context);
     return SoftCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -398,7 +398,7 @@ class _FeedbackCard extends StatelessWidget {
                     Text(
                       _formatTime(feedback.createdAt),
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                        color: th.textSecondary,
                       ),
                     ),
                   ],
@@ -414,7 +414,7 @@ class _FeedbackCard extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
+                color: th.textPrimary,
                 height: 1.35,
               ),
             ),
@@ -476,10 +476,11 @@ class _SummaryStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: AppColors.cardTint,
+        color: th.tintBackground,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -496,7 +497,7 @@ class _SummaryStat extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
+                    color: th.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 1),
@@ -505,7 +506,7 @@ class _SummaryStat extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
+                    color: th.textPrimary,
                     fontWeight: AppFontWeights.extraBold,
                   ),
                 ),
