@@ -15,10 +15,24 @@ import '../../widgets/common/submission_success_dialog.dart';
 import 'complaint_history_page.dart';
 
 class ComplaintPage extends StatefulWidget {
-  const ComplaintPage({super.key});
+  const ComplaintPage({super.key, this.prefill});
+
+  final ComplaintPrefill? prefill;
 
   @override
   State<ComplaintPage> createState() => _ComplaintPageState();
+}
+
+class ComplaintPrefill {
+  const ComplaintPrefill({
+    required this.type,
+    required this.title,
+    required this.message,
+  });
+
+  final String type;
+  final String title;
+  final String message;
 }
 
 class _ComplaintPageState extends State<ComplaintPage> {
@@ -38,6 +52,18 @@ class _ComplaintPageState extends State<ComplaintPage> {
     'App issue',
     'Other',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final prefill = widget.prefill;
+    if (prefill == null) return;
+    _selectedType = _complaintTypes.contains(prefill.type)
+        ? prefill.type
+        : 'Wrong alerts';
+    _title.text = prefill.title;
+    _message.text = prefill.message;
+  }
 
   @override
   void dispose() {

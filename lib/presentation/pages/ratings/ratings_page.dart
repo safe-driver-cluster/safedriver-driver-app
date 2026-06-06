@@ -358,86 +358,96 @@ class _FeedbackCard extends StatelessWidget {
     final rating = feedback.rating.clamp(0, 5);
     final color = _colorFor(rating);
     final th = ThemeHelper.of(context);
-    return SoftCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  '$rating',
-                  style: AppTextStyles.title.copyWith(
-                    color: color,
-                    fontWeight: AppFontWeights.extraBold,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showFeedbackDetails(context, feedback),
+      child: SoftCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    '$rating',
+                    style: AppTextStyles.title.copyWith(
+                      color: color,
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      feedback.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.title.copyWith(
-                        fontWeight: AppFontWeights.extraBold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        feedback.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.title.copyWith(
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _formatTime(feedback.createdAt),
-                      style: AppTextStyles.caption.copyWith(
-                        color: th.textSecondary,
+                      const SizedBox(height: 3),
+                      Text(
+                        _formatTime(feedback.createdAt),
+                        style: AppTextStyles.caption.copyWith(
+                          color: th.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                _StarRow(rating: rating, size: 17),
+              ],
+            ),
+            if (feedback.description.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                feedback.description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textPrimary,
+                  height: 1.35,
                 ),
               ),
-              _StarRow(rating: rating, size: 17),
             ],
-          ),
-          if (feedback.description.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
-              feedback.description,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: th.textPrimary,
-                height: 1.35,
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _InfoChip(
+                  icon: Icons.person_rounded,
+                  label: feedback.passengerName,
+                  color: AppColors.primaryColor,
+                ),
+                if (feedback.category.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.category_rounded,
+                    label: _labelFor(feedback.category),
+                    color: AppColors.textSecondary,
+                  ),
+                _InfoChip(
+                  icon: Icons.open_in_new_rounded,
+                  label: 'View details',
+                  color: color,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _InfoChip(
-                icon: Icons.person_rounded,
-                label: feedback.passengerName,
-                color: AppColors.primaryColor,
-              ),
-              if (feedback.category.isNotEmpty)
-                _InfoChip(
-                  icon: Icons.category_rounded,
-                  label: _labelFor(feedback.category),
-                  color: AppColors.textSecondary,
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -454,13 +464,220 @@ class _FeedbackCard extends StatelessWidget {
   }
 
   String _labelFor(String value) {
-    return value
-        .replaceAll('_', ' ')
-        .split(' ')
-        .where((word) => word.isNotEmpty)
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
+    return _labelForFeedbackValue(value);
   }
+}
+
+void _showFeedbackDetails(BuildContext context, DriverFeedback feedback) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => _FeedbackDetailsDialog(feedback: feedback),
+  );
+}
+
+class _FeedbackDetailsDialog extends StatelessWidget {
+  const _FeedbackDetailsDialog({required this.feedback});
+
+  final DriverFeedback feedback;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = feedback.rating.clamp(0, 5);
+    final color = _colorFor(rating);
+    final th = ThemeHelper.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final rows = _detailRows(feedback);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: size.height * 0.86,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: th.isDark ? null : AppDesign.shadowLG,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 50,
+                      width: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        '$rating',
+                        style: AppTextStyles.title.copyWith(
+                          color: color,
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            feedback.title,
+                            style: AppTextStyles.title.copyWith(
+                              color: th.textPrimary,
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            _formatDetailTime(feedback.createdAt),
+                            style: AppTextStyles.caption.copyWith(
+                              color: th.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _StarRow(rating: rating, size: 22),
+                const SizedBox(height: 18),
+                Text(
+                  feedback.description.isEmpty
+                      ? 'No written comment was provided.'
+                      : feedback.description,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoChip(
+                      icon: Icons.person_rounded,
+                      label: feedback.passengerName,
+                      color: AppColors.primaryColor,
+                    ),
+                    if (feedback.category.isNotEmpty)
+                      _InfoChip(
+                        icon: Icons.category_rounded,
+                        label: _labelForFeedbackValue(feedback.category),
+                        color: AppColors.textSecondary,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  'Full details',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...rows.map(
+                  (row) => _FeedbackDetailRow(label: row.key, value: row.value),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _colorFor(int rating) {
+    if (rating >= 4) return AppColors.secondaryColor;
+    if (rating == 3) return AppColors.warningColor;
+    return AppColors.dangerColor;
+  }
+}
+
+class _FeedbackDetailRow extends StatelessWidget {
+  const _FeedbackDetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textSecondary,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          SelectableText(
+            value,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textPrimary,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<MapEntry<String, String>> _detailRows(DriverFeedback feedback) {
+  return [
+    MapEntry('Passenger', feedback.passengerName),
+    MapEntry('Rating', '${feedback.rating.clamp(0, 5)} out of 5'),
+    MapEntry(
+      'Category',
+      feedback.category.isEmpty
+          ? 'Not specified'
+          : _labelForFeedbackValue(feedback.category),
+    ),
+    MapEntry('Submitted', _formatDetailTime(feedback.createdAt)),
+    MapEntry('Feedback ID', feedback.id),
+  ];
+}
+
+String _formatDetailTime(DateTime? time) {
+  if (time == null) return 'Date unavailable';
+  return DateFormat.yMMMMd().add_jm().format(time);
+}
+
+String _labelForFeedbackValue(String value) {
+  return value
+      .replaceAll('_', ' ')
+      .split(' ')
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
 }
 
 class _SummaryStat extends StatelessWidget {

@@ -11,6 +11,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
 import '../../widgets/common/professional_widgets.dart';
+import '../complaints/complaint_page.dart';
 
 const _defaultAlertTypes = ['safety', 'smoking', 'phone', 'sleep'];
 
@@ -602,17 +603,6 @@ class _AlertCard extends StatelessWidget {
                     label: alert.numberPlate,
                     color: AppColors.primaryColor,
                   ),
-                if (alert.tag.isNotEmpty)
-                  _InfoChip(
-                    icon: Icons.sell_rounded,
-                    label: alert.tag,
-                    color: AppColors.textSecondary,
-                  ),
-                const _InfoChip(
-                  icon: Icons.touch_app_rounded,
-                  label: 'Details',
-                  color: AppColors.textSecondary,
-                ),
               ],
             ),
           ],
@@ -654,16 +644,34 @@ class _AlertCard extends StatelessWidget {
 }
 
 void _showAlertDetails(BuildContext context, DriverAlert alert) {
+  final parentContext = context;
   showDialog<void>(
     context: context,
-    builder: (context) => _AlertDetailsDialog(alert: alert),
+    builder: (context) => _AlertDetailsDialog(
+      alert: alert,
+      onReport: () {
+        Navigator.of(context).pop();
+        Navigator.of(parentContext).push(
+          MaterialPageRoute(
+            builder: (_) => ComplaintPage(
+              prefill: ComplaintPrefill(
+                type: 'Wrong alerts',
+                title: 'Wrong alert report: ${alert.title}',
+                message: _complaintMessageFor(alert),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
   );
 }
 
 class _AlertDetailsDialog extends StatelessWidget {
-  const _AlertDetailsDialog({required this.alert});
+  const _AlertDetailsDialog({required this.alert, required this.onReport});
 
   final DriverAlert alert;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -813,6 +821,12 @@ class _AlertDetailsDialog extends StatelessWidget {
                 ...rows.map(
                   (row) => _DetailRow(label: row.key, value: row.value),
                 ),
+                const SizedBox(height: 10),
+                GradientButton(
+                  label: 'Report this alert',
+                  icon: Icons.report_problem_rounded,
+                  onPressed: onReport,
+                ),
               ],
             ),
           ),
@@ -820,6 +834,25 @@ class _AlertDetailsDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+String _complaintMessageFor(DriverAlert alert) {
+  final lines = [
+    'I want to report this alert as wrong or needing review.',
+    '',
+    'Alert details:',
+    'Title: ${alert.title}',
+    'Message: ${alert.description}',
+    if (alert.type.isNotEmpty) 'Type: ${_humanize(alert.type)}',
+    if (alert.driverRef.isNotEmpty) 'Driver: ${alert.driverRef}',
+    if (alert.numberPlate.isNotEmpty) 'Number plate: ${alert.numberPlate}',
+    if (alert.tag.isNotEmpty) 'Tag: ${alert.tag}',
+    if (alert.status.isNotEmpty) 'Status: ${alert.status}',
+    if (alert.priority.isNotEmpty) 'Priority: ${alert.priority}',
+    'Time: ${_formatDetailDate(alert.createdAt)}',
+    if (alert.evidenceUrl.isNotEmpty) 'Evidence: ${alert.evidenceUrl}',
+  ];
+  return lines.join('\n');
 }
 
 class _DetailRow extends StatelessWidget {

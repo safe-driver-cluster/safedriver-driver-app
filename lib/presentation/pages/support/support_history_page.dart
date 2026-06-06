@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
+import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
@@ -122,87 +123,97 @@ class _SupportHistoryCard extends StatelessWidget {
     final priorityColor = request.priority.toLowerCase() == 'urgent'
         ? AppColors.dangerColor
         : AppColors.primaryColor;
-    return SoftCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(15),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showSupportDetails(context, request),
+      child: SoftCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    Icons.support_agent_rounded,
+                    color: AppColors.primaryColor,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.support_agent_rounded,
-                  color: AppColors.primaryColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      request.category,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.title.copyWith(
-                        fontWeight: AppFontWeights.extraBold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        request.category,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.title.copyWith(
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatTime(request.createdAt),
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(request.createdAt),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              _Pill(
-                icon: Icons.circle_rounded,
-                label: _labelFor(request.status),
-                color: statusColor,
+                _Pill(
+                  icon: Icons.circle_rounded,
+                  label: _labelFor(request.status),
+                  color: statusColor,
+                ),
+              ],
+            ),
+            if (request.message.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                request.message,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(height: 1.35),
               ),
             ],
-          ),
-          if (request.message.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
-              request.message,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(height: 1.35),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _Pill(
+                  icon: request.priority.toLowerCase() == 'urgent'
+                      ? Icons.priority_high_rounded
+                      : Icons.check_circle_rounded,
+                  label: _labelFor(request.priority),
+                  color: priorityColor,
+                ),
+                if (request.updatedAt != null)
+                  _Pill(
+                    icon: Icons.update_rounded,
+                    label:
+                        'Updated ${DateFormat.MMMd().format(request.updatedAt!)}',
+                    color: AppColors.textSecondary,
+                  ),
+                _Pill(
+                  icon: Icons.open_in_new_rounded,
+                  label: 'View details',
+                  color: statusColor,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _Pill(
-                icon: request.priority.toLowerCase() == 'urgent'
-                    ? Icons.priority_high_rounded
-                    : Icons.check_circle_rounded,
-                label: _labelFor(request.priority),
-                color: priorityColor,
-              ),
-              if (request.updatedAt != null)
-                _Pill(
-                  icon: Icons.update_rounded,
-                  label:
-                      'Updated ${DateFormat.MMMd().format(request.updatedAt!)}',
-                  color: AppColors.textSecondary,
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -219,6 +230,206 @@ class _SupportHistoryCard extends StatelessWidget {
     }
     return AppColors.primaryColor;
   }
+}
+
+void _showSupportDetails(BuildContext context, DriverSupportRequest request) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => _SupportDetailsDialog(request: request),
+  );
+}
+
+class _SupportDetailsDialog extends StatelessWidget {
+  const _SupportDetailsDialog({required this.request});
+
+  final DriverSupportRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(request.status);
+    final priorityColor = request.priority.toLowerCase() == 'urgent'
+        ? AppColors.dangerColor
+        : AppColors.primaryColor;
+    final th = ThemeHelper.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final rows = _supportDetailRows(request);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: size.height * 0.86,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: th.isDark ? null : AppDesign.shadowLG,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 50,
+                      width: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.support_agent_rounded,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            request.category,
+                            style: AppTextStyles.title.copyWith(
+                              color: th.textPrimary,
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            _formatDetailTime(request.createdAt),
+                            style: AppTextStyles.caption.copyWith(
+                              color: th.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  request.message.isEmpty
+                      ? 'No support message was provided.'
+                      : request.message,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _Pill(
+                      icon: Icons.circle_rounded,
+                      label: _labelFor(request.status),
+                      color: statusColor,
+                    ),
+                    _Pill(
+                      icon: request.priority.toLowerCase() == 'urgent'
+                          ? Icons.priority_high_rounded
+                          : Icons.check_circle_rounded,
+                      label: _labelFor(request.priority),
+                      color: priorityColor,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  'Full details',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...rows.map(
+                  (row) => _DetailRow(label: row.key, value: row.value),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('closed') ||
+        normalized.contains('resolved') ||
+        normalized.contains('done')) {
+      return AppColors.secondaryColor;
+    }
+    if (normalized.contains('progress') || normalized.contains('review')) {
+      return AppColors.warningColor;
+    }
+    return AppColors.primaryColor;
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textSecondary,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          SelectableText(
+            value,
+            style: AppTextStyles.caption.copyWith(
+              color: th.textPrimary,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<MapEntry<String, String>> _supportDetailRows(
+  DriverSupportRequest request,
+) {
+  return [
+    MapEntry('Category', request.category),
+    MapEntry('Priority', _labelFor(request.priority)),
+    MapEntry('Status', _labelFor(request.status)),
+    MapEntry('Submitted', _formatDetailTime(request.createdAt)),
+    MapEntry('Last updated', _formatDetailTime(request.updatedAt)),
+    MapEntry('Request ID', request.id),
+  ];
 }
 
 class _Pill extends StatelessWidget {
@@ -277,6 +488,11 @@ class _ScrollableEmptyState extends StatelessWidget {
 String _formatTime(DateTime? time) {
   if (time == null) return 'Date unavailable';
   return DateFormat.yMMMd().add_jm().format(time);
+}
+
+String _formatDetailTime(DateTime? time) {
+  if (time == null) return 'Date unavailable';
+  return DateFormat.yMMMMd().add_jm().format(time);
 }
 
 String _labelFor(String value) {
