@@ -15,7 +15,7 @@ class AppLocalizations {
 
   static final Map<String, Map<String, String>> _values = {
     'en': {
-      'appName': 'SafeDriver Driver',
+      'appName': 'SafeDriver - Driver App',
       'tagline': 'Focused tools for safer bus operations',
       'version': 'Version',
       'skip': 'Skip',

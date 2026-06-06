@@ -28,7 +28,7 @@ class DriverApp extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         return MaterialApp(
-          title: 'SafeDriver Driver',
+          title: 'SafeDriver - Driver App',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,

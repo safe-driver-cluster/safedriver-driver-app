@@ -1,4 +1,4 @@
-package com.example.safe_driver_driver_app
+package com.codecrafters.safedriver_driver
 
 import io.flutter.embedding.android.FlutterActivity
 
