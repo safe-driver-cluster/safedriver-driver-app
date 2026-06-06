@@ -51,28 +51,6 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _ProfileStat(
-                icon: Icons.shield_rounded,
-                label: l10n.t('safetyScore'),
-                value: driver.safetyScore.toStringAsFixed(0),
-                color: AppColors.secondaryColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ProfileStat(
-                icon: Icons.star_rounded,
-                label: l10n.t('passengerRating'),
-                value: driver.rating.toStringAsFixed(1),
-                color: AppColors.warningColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
         _InfoRow(
           icon: Icons.badge_rounded,
           label: l10n.t('employeeId'),
@@ -207,52 +185,6 @@ class _InlineStatus extends StatelessWidget {
           color: color,
           fontWeight: AppFontWeights.bold,
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileStat extends StatelessWidget {
-  const _ProfileStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SoftCard(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: AppTextStyles.title.copyWith(
-                    fontWeight: AppFontWeights.extraBold,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
