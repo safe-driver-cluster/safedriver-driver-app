@@ -432,6 +432,39 @@ List<MapEntry<String, String>> _supportDetailRows(
   ];
 }
 
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label, required this.color});
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: color,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ScrollableEmptyState extends StatelessWidget {
   const _ScrollableEmptyState({required this.message, required this.icon});
 
@@ -455,6 +488,11 @@ class _ScrollableEmptyState extends StatelessWidget {
 String _formatTime(DateTime? time) {
   if (time == null) return 'Date unavailable';
   return DateFormat.yMMMd().add_jm().format(time);
+}
+
+String _formatDetailTime(DateTime? time) {
+  if (time == null) return 'Date unavailable';
+  return DateFormat.yMMMMd().add_jm().format(time);
 }
 
 String _labelFor(String value) {
