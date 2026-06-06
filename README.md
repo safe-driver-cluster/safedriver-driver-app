@@ -1,4 +1,4 @@
-# safe_driver_driver_app
+# SafeDriver - Driver App
 
 A new Flutter project.
 
