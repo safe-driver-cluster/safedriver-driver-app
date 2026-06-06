@@ -603,17 +603,6 @@ class _AlertCard extends StatelessWidget {
                     label: alert.numberPlate,
                     color: AppColors.primaryColor,
                   ),
-                if (alert.tag.isNotEmpty)
-                  _InfoChip(
-                    icon: Icons.sell_rounded,
-                    label: alert.tag,
-                    color: AppColors.textSecondary,
-                  ),
-                const _InfoChip(
-                  icon: Icons.touch_app_rounded,
-                  label: 'Details',
-                  color: AppColors.textSecondary,
-                ),
               ],
             ),
           ],
@@ -780,12 +769,6 @@ class _AlertDetailsDialog extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                GradientButton(
-                  label: 'Report this alert',
-                  icon: Icons.report_problem_rounded,
-                  onPressed: onReport,
-                ),
                 if (alert.evidenceUrl.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   Text(
@@ -837,6 +820,12 @@ class _AlertDetailsDialog extends StatelessWidget {
                 const SizedBox(height: 10),
                 ...rows.map(
                   (row) => _DetailRow(label: row.key, value: row.value),
+                ),
+                const SizedBox(height: 10),
+                GradientButton(
+                  label: 'Report this alert',
+                  icon: Icons.report_problem_rounded,
+                  onPressed: onReport,
                 ),
               ],
             ),
