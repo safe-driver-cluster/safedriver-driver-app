@@ -8,6 +8,7 @@ import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
+import '../../widgets/common/submission_success_dialog.dart';
 import 'support_history_page.dart';
 
 class SupportPage extends StatefulWidget {
@@ -77,11 +78,10 @@ class _SupportPageState extends State<SupportPage> {
       );
       _message.clear();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Support request sent to admin.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSubmissionSuccessDialog(
+        context: context,
+        title: 'Support Request Sent',
+        message: 'Your support request was sent to admin successfully.',
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

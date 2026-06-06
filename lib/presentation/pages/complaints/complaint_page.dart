@@ -10,6 +10,7 @@ import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/common/professional_widgets.dart';
+import '../../widgets/common/submission_success_dialog.dart';
 import 'complaint_history_page.dart';
 
 class ComplaintPage extends StatefulWidget {
@@ -60,9 +61,11 @@ class _ComplaintPageState extends State<ComplaintPage> {
       _message.clear();
       setState(() => _media = null);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.t('complaintSent'))));
+      await showSubmissionSuccessDialog(
+        context: context,
+        title: 'Complaint Submitted',
+        message: l10n.t('complaintSent'),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
