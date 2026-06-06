@@ -8,7 +8,6 @@ import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../widgets/dashboard/dashboard_action_tile.dart';
-import '../../widgets/dashboard/dashboard_metric.dart';
 import '../alerts/alerts_page.dart';
 import '../attendance/attendance_page.dart';
 import '../buses/buses_page.dart';
@@ -160,28 +159,6 @@ class _DashboardHome extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 104),
       children: [
         _DriverOverviewCard(driver: driver, l10n: l10n),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: DashboardMetric(
-                label: l10n.t('safetyScore'),
-                value: driver.safetyScore.toStringAsFixed(0),
-                icon: Icons.shield_rounded,
-                color: AppColors.secondaryColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DashboardMetric(
-                label: l10n.t('passengerRating'),
-                value: driver.rating.toStringAsFixed(1),
-                icon: Icons.star_rounded,
-                color: AppColors.warningColor,
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 16),
         Text(
           'Quick actions',
