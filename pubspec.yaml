@@ -21,6 +21,7 @@ dependencies:
   geolocator: ^10.1.0
   shared_preferences: ^2.2.2
   intl: ^0.20.0
+  country_code_picker: ^3.4.1
 
 dev_dependencies:
   flutter_test:
