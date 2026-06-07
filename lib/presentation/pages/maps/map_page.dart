@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_font_weights.dart';
@@ -25,21 +25,19 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   static const _fallbackCenter = LatLng(6.9271, 79.8612);
-  static const _standardTiles =
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  static const _detailTiles =
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
-  final _mapController = MapController();
   final _searchController = TextEditingController();
   final _service = DriverDataService();
 
+  GoogleMapController? _mapController;
   StreamSubscription<Position>? _positionSubscription;
   LatLng? _currentPosition;
   DriverBus? _assignedBus;
+  DriverHazardZone? _selectedHazard;
   bool _locating = false;
-  bool _detailMap = false;
   bool _hazardsVisible = false;
+  bool _trafficEnabled = false;
+  MapType _mapType = MapType.normal;
 
   @override
   void initState() {
@@ -53,7 +51,7 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     _positionSubscription?.cancel();
     _searchController.dispose();
-    _mapController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -136,12 +134,18 @@ class _MapPageState extends State<MapPage> {
     if (!mounted) return;
     final point = LatLng(position.latitude, position.longitude);
     setState(() => _currentPosition = point);
-    if (moveMap) _mapController.move(point, 16);
+    if (moveMap) {
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(point, 16));
+    }
   }
 
-  void _zoom(double amount) {
-    final camera = _mapController.camera;
-    _mapController.move(camera.center, (camera.zoom + amount).clamp(3, 19));
+  Future<void> _zoom(double amount) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final zoom = await controller.getZoomLevel();
+    await controller.animateCamera(
+      CameraUpdate.zoomTo((zoom + amount).clamp(3, 20)),
+    );
   }
 
   void _focusAssignedBus() {
@@ -150,25 +154,27 @@ class _MapPageState extends State<MapPage> {
       _message('The assigned bus has not shared a location yet.');
       return;
     }
-    _mapController.move(LatLng(bus!.latitude!, bus.longitude!), 16);
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(bus!.latitude!, bus.longitude!), 16),
+    );
   }
 
   Future<void> _openNavigation() async {
     final query = _searchController.text.trim();
     final bus = _assignedBus;
     final destination = query.isNotEmpty
-        ? Uri.encodeComponent(query)
+        ? query
         : bus?.latitude != null && bus?.longitude != null
         ? '${bus!.latitude},${bus.longitude}'
-        : Uri.encodeComponent(
-            AppScope.of(context).driver!.currentRoute.trim().isEmpty
-                ? 'bus depot'
-                : AppScope.of(context).driver!.currentRoute,
-          );
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$destination'
-      '&travelmode=driving',
-    );
+        : AppScope.of(context).driver!.currentRoute.trim().isEmpty
+        ? 'bus depot'
+        : AppScope.of(context).driver!.currentRoute;
+    final uri = Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'destination': destination,
+      'travelmode': 'driving',
+      'dir_action': 'navigate',
+    });
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _message('Could not open navigation on this device.');
     }
@@ -191,21 +197,52 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _showHazards(List<DriverHazardZone> hazards) {
-    if (hazards.isNotEmpty) {
-      setState(() => _hazardsVisible = true);
-      final first = hazards.first;
-      _mapController.move(LatLng(first.latitude, first.longitude), 15);
+    if (hazards.isEmpty) {
+      _message('No hazard zones are available.');
+      return;
     }
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.55,
-        maxChildSize: 0.85,
-        builder: (context, controller) =>
-            _HazardSheet(hazards: hazards, controller: controller),
+    setState(() {
+      _hazardsVisible = true;
+      _selectedHazard = null;
+    });
+    _fitHazards(hazards);
+  }
+
+  void _selectHazard(DriverHazardZone hazard) {
+    setState(() => _selectedHazard = hazard);
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLng(LatLng(hazard.latitude, hazard.longitude)),
+    );
+  }
+
+  void _fitHazards(List<DriverHazardZone> hazards) {
+    final controller = _mapController;
+    if (controller == null || hazards.isEmpty) return;
+    final points = <LatLng>[
+      if (_currentPosition != null) _currentPosition!,
+      ...hazards.map((hazard) => LatLng(hazard.latitude, hazard.longitude)),
+    ];
+    if (points.length == 1) {
+      controller.animateCamera(CameraUpdate.newLatLngZoom(points.first, 15));
+      return;
+    }
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLat = math.min(minLat, point.latitude);
+      maxLat = math.max(maxLat, point.latitude);
+      minLng = math.min(minLng, point.longitude);
+      maxLng = math.max(maxLng, point.longitude);
+    }
+    controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        64,
       ),
     );
   }
@@ -233,15 +270,24 @@ class _MapPageState extends State<MapPage> {
                 map: _buildMap(hazards),
                 hazards: hazards,
                 hazardsVisible: _hazardsVisible,
+                selectedHazard: _selectedHazard,
                 bus: _assignedBus,
                 locating: _locating,
+                trafficEnabled: _trafficEnabled,
                 onSearch: _search,
                 onNavigate: _openNavigation,
                 onHazards: () => _showHazards(hazards),
+                onCloseHazard: () => setState(() => _selectedHazard = null),
                 onBus: _focusAssignedBus,
                 onZoomIn: () => _zoom(1),
                 onZoomOut: () => _zoom(-1),
-                onMapStyle: () => setState(() => _detailMap = !_detailMap),
+                onMapStyle: () => setState(() {
+                  _mapType = _mapType == MapType.normal
+                      ? MapType.hybrid
+                      : MapType.normal;
+                }),
+                onTraffic: () =>
+                    setState(() => _trafficEnabled = !_trafficEnabled),
                 onLocate: _locateDriver,
               ),
             );
@@ -252,97 +298,132 @@ class _MapPageState extends State<MapPage> {
   }
 
   Widget _buildMap(List<DriverHazardZone> hazards) {
-    final markers = <Marker>[
-      if (_currentPosition != null)
-        Marker(
-          point: _currentPosition!,
-          width: 54,
-          height: 64,
-          child: const _MapMarker(
-            icon: Icons.navigation_rounded,
-            color: AppColors.primaryColor,
-            label: 'You',
-          ),
-        ),
+    final markers = <Marker>{
       if (_assignedBus?.latitude != null && _assignedBus?.longitude != null)
         Marker(
-          point: LatLng(_assignedBus!.latitude!, _assignedBus!.longitude!),
-          width: 64,
-          height: 70,
-          child: _MapMarker(
-            icon: Icons.directions_bus_rounded,
-            color: AppColors.purpleColor,
-            label: _assignedBus!.busNumber,
+          markerId: const MarkerId('assigned_bus'),
+          position: LatLng(_assignedBus!.latitude!, _assignedBus!.longitude!),
+          infoWindow: InfoWindow(
+            title: _assignedBus!.busNumber,
+            snippet: _assignedBus!.locationAddress.isEmpty
+                ? _assignedBus!.locationDepot
+                : _assignedBus!.locationAddress,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueViolet,
           ),
         ),
-      if (_hazardsVisible) ...hazards.map(_hazardMarker),
-    ];
-    final hazardCircles = _hazardsVisible
-        ? hazards.map(_hazardCircle).toList()
-        : const <CircleMarker>[];
+      if (_hazardsVisible)
+        ...hazards.map(
+          (hazard) => Marker(
+            markerId: MarkerId('hazard_${hazard.id}'),
+            position: LatLng(hazard.latitude, hazard.longitude),
+            infoWindow: InfoWindow(
+              title: hazard.name,
+              snippet:
+                  '${_hazardTypeLabel(hazard.type)} - ${hazard.radiusMeters.toStringAsFixed(0)} m radius',
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              _hazardMarkerHue(hazard.type),
+            ),
+            onTap: () => _selectHazard(hazard),
+          ),
+        ),
+    };
+    final circles = _hazardsVisible
+        ? hazards
+              .map(
+                (hazard) => Circle(
+                  circleId: CircleId('hazard_radius_${hazard.id}'),
+                  center: LatLng(hazard.latitude, hazard.longitude),
+                  radius: hazard.radiusMeters <= 0 ? 250 : hazard.radiusMeters,
+                  fillColor: _hazardColor(hazard.type).withValues(alpha: 0.16),
+                  strokeColor: _hazardColor(hazard.type),
+                  strokeWidth: 2,
+                ),
+              )
+              .toSet()
+        : const <Circle>{};
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: _currentPosition ?? _fallbackCenter,
-        initialZoom: 14,
-        minZoom: 3,
-        maxZoom: 19,
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-        ),
+    return GoogleMap(
+      initialCameraPosition: const CameraPosition(
+        target: _fallbackCenter,
+        zoom: 14,
       ),
-      children: [
-        TileLayer(
-          urlTemplate: _detailMap ? _detailTiles : _standardTiles,
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.safedriver.driver',
-        ),
-        if (hazardCircles.isNotEmpty)
-          CircleLayer(circles: hazardCircles, optimizeRadiusInMeters: true),
-        MarkerLayer(markers: markers),
-        const RichAttributionWidget(
-          attributions: [
-            TextSourceAttribution('OpenStreetMap contributors'),
-            TextSourceAttribution('CARTO'),
-          ],
-        ),
-      ],
+      onMapCreated: (controller) {
+        _mapController = controller;
+        if (_currentPosition != null) {
+          controller.animateCamera(
+            CameraUpdate.newLatLngZoom(_currentPosition!, 16),
+          );
+        }
+      },
+      markers: markers,
+      circles: circles,
+      mapType: _mapType,
+      trafficEnabled: _trafficEnabled,
+      myLocationEnabled: _currentPosition != null,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      mapToolbarEnabled: false,
+      buildingsEnabled: true,
+      compassEnabled: true,
+      onTap: (_) {
+        if (_selectedHazard != null) setState(() => _selectedHazard = null);
+      },
     );
   }
 
-  Marker _hazardMarker(DriverHazardZone hazard) {
-    return Marker(
-      point: LatLng(hazard.latitude, hazard.longitude),
-      width: 58,
-      height: 58,
-      child: Tooltip(
-        message: hazard.name,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: AppDesign.shadowSM,
-          ),
-          child: const Icon(
-            Icons.warning_rounded,
-            color: AppColors.dangerColor,
-            size: 38,
-          ),
-        ),
-      ),
-    );
+  Color _hazardColor(String type) {
+    switch (type.toLowerCase().trim()) {
+      case 'accident':
+        return AppColors.dangerColor;
+      case 'construction':
+        return AppColors.warningColor;
+      case 'flood':
+      case 'flooding':
+        return AppColors.infoColor;
+      case 'traffic':
+      case 'heavy_traffic':
+        return Colors.deepOrange;
+      case 'restricted':
+      case 'restricted_area':
+      case 'road_closed':
+        return AppColors.purpleColor;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 
-  CircleMarker _hazardCircle(DriverHazardZone hazard) {
-    return CircleMarker(
-      point: LatLng(hazard.latitude, hazard.longitude),
-      radius: hazard.radiusMeters <= 0 ? 250 : hazard.radiusMeters,
-      useRadiusInMeter: true,
-      color: AppColors.dangerColor.withValues(alpha: 0.16),
-      borderColor: AppColors.dangerColor.withValues(alpha: 0.55),
-      borderStrokeWidth: 2,
-    );
+  double _hazardMarkerHue(String type) {
+    switch (type.toLowerCase().trim()) {
+      case 'accident':
+        return BitmapDescriptor.hueRed;
+      case 'construction':
+        return BitmapDescriptor.hueYellow;
+      case 'flood':
+      case 'flooding':
+        return BitmapDescriptor.hueAzure;
+      case 'traffic':
+      case 'heavy_traffic':
+        return BitmapDescriptor.hueOrange;
+      case 'restricted':
+      case 'restricted_area':
+      case 'road_closed':
+        return BitmapDescriptor.hueViolet;
+      default:
+        return BitmapDescriptor.hueRose;
+    }
+  }
+
+  String _hazardTypeLabel(String type) {
+    if (type.trim().isEmpty) return 'Hazard';
+    return type
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+        .join(' ');
   }
 }
 
@@ -352,15 +433,19 @@ class _MapBody extends StatelessWidget {
     required this.map,
     required this.hazards,
     required this.hazardsVisible,
+    required this.selectedHazard,
     required this.bus,
     required this.locating,
+    required this.trafficEnabled,
     required this.onSearch,
     required this.onNavigate,
     required this.onHazards,
+    required this.onCloseHazard,
     required this.onBus,
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onMapStyle,
+    required this.onTraffic,
     required this.onLocate,
   });
 
@@ -368,15 +453,19 @@ class _MapBody extends StatelessWidget {
   final Widget map;
   final List<DriverHazardZone> hazards;
   final bool hazardsVisible;
+  final DriverHazardZone? selectedHazard;
   final DriverBus? bus;
   final bool locating;
+  final bool trafficEnabled;
   final VoidCallback onSearch;
   final VoidCallback onNavigate;
   final VoidCallback onHazards;
+  final VoidCallback onCloseHazard;
   final VoidCallback onBus;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onMapStyle;
+  final VoidCallback onTraffic;
   final VoidCallback onLocate;
 
   @override
@@ -395,7 +484,7 @@ class _MapBody extends StatelessWidget {
               hintText: 'Search destination, bus stop, or route',
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: IconButton(
-                tooltip: 'Search in maps',
+                tooltip: 'Search in Google Maps',
                 onPressed: onSearch,
                 icon: const Icon(Icons.arrow_forward_rounded),
               ),
@@ -469,6 +558,12 @@ class _MapBody extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         _MapControl(
+                          icon: Icons.traffic_rounded,
+                          active: trafficEnabled,
+                          onTap: onTraffic,
+                        ),
+                        const SizedBox(height: 8),
+                        _MapControl(
                           icon: Icons.directions_bus_rounded,
                           onTap: onBus,
                         ),
@@ -482,6 +577,16 @@ class _MapBody extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (selectedHazard != null)
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 12,
+                      child: _HazardDetailsCard(
+                        hazard: selectedHazard!,
+                        onClose: onCloseHazard,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -545,15 +650,22 @@ class _PrimaryAction extends StatelessWidget {
 }
 
 class _MapControl extends StatelessWidget {
-  const _MapControl({required this.icon, required this.onTap});
+  const _MapControl({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: ThemeHelper.of(context).cardBackground,
+      color: active
+          ? AppColors.primaryColor
+          : ThemeHelper.of(context).cardBackground,
       elevation: 3,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
@@ -562,7 +674,10 @@ class _MapControl extends StatelessWidget {
         child: SizedBox(
           width: 48,
           height: 48,
-          child: Icon(icon, color: AppColors.primaryColor),
+          child: Icon(
+            icon,
+            color: active ? Colors.white : AppColors.primaryColor,
+          ),
         ),
       ),
     );
@@ -630,88 +745,78 @@ class _BusMapCard extends StatelessWidget {
   }
 }
 
-class _MapMarker extends StatelessWidget {
-  const _MapMarker({
-    required this.icon,
-    required this.color,
-    required this.label,
-  });
+class _HazardDetailsCard extends StatelessWidget {
+  const _HazardDetailsCard({required this.hazard, required this.onClose});
 
-  final IconData icon;
-  final Color color;
-  final String label;
+  final DriverHazardZone hazard;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          Icon(Icons.location_on_rounded, color: color, size: 58),
-          Positioned(top: 8, child: Icon(icon, color: Colors.white, size: 23)),
-        ],
-      ),
-    );
-  }
-}
-
-class _HazardSheet extends StatelessWidget {
-  const _HazardSheet({required this.hazards, required this.controller});
-
-  final List<DriverHazardZone> hazards;
-  final ScrollController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    if (hazards.isEmpty) {
-      return const Center(
-        child: EmptyState(
-          message: 'No hazard zones are available.',
-          icon: Icons.verified_user_rounded,
+    final th = ThemeHelper.of(context);
+    return Material(
+      color: th.cardBackground.withValues(alpha: 0.96),
+      elevation: 8,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: AppColors.dangerColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: AppColors.dangerColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    hazard.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${hazard.type.replaceAll('_', ' ')} - ${hazard.radiusMeters.toStringAsFixed(0)} m radius',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.dangerColor,
+                      fontWeight: AppFontWeights.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hazard.location,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(
+                      color: th.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: onClose,
+              icon: Icon(Icons.close_rounded, color: th.textSecondary),
+            ),
+          ],
         ),
-      );
-    }
-    return ListView.separated(
-      controller: controller,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      itemCount: hazards.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Hazard zones shown on map',
-              style: AppTextStyles.headline3,
-            ),
-          );
-        }
-        final hazard = hazards[index - 1];
-        return ListTile(
-          tileColor: AppColors.dangerColor.withValues(alpha: 0.08),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          leading: const Icon(
-            Icons.warning_rounded,
-            color: AppColors.dangerColor,
-          ),
-          title: Text(hazard.name),
-          subtitle: Text(
-            '${hazard.location} - ${hazard.radiusMeters.toStringAsFixed(0)} m radius',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Text(
-            hazard.type,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.dangerColor,
-              fontWeight: AppFontWeights.bold,
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 }

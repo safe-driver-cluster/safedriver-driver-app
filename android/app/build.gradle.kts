@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -15,6 +16,14 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
+val envProperties = Properties()
+val envFile = rootProject.file("../.env")
+if (envFile.exists()) {
+    envFile.inputStream().use { stream ->
+        envProperties.load(stream)
+    }
+}
+
 android {
     namespace = "com.codecrafters.safedriver_driver"
     compileSdk = flutter.compileSdkVersion
@@ -25,10 +34,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
     defaultConfig {
         applicationId = "com.codecrafters.safedriver_driver"
         // You can update the following values to match your application needs.
@@ -37,6 +42,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] =
+            envProperties.getProperty("GOOGLE_MAPS_API_KEY", "MISSING_GOOGLE_MAPS_API_KEY")
     }
 
     signingConfigs {
@@ -52,6 +59,12 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
