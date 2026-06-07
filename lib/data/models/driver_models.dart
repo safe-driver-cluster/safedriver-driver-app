@@ -321,6 +321,60 @@ class DriverAlert {
   }
 }
 
+class DriverHazardZone {
+  DriverHazardZone({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.location,
+    required this.latitude,
+    required this.longitude,
+    required this.radiusMeters,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.raw,
+  });
+
+  final String id;
+  final String name;
+  final String type;
+  final String location;
+  final double latitude;
+  final double longitude;
+  final double radiusMeters;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final Map<String, dynamic> raw;
+
+  bool get hasLocation => latitude != 0 && longitude != 0;
+
+  factory DriverHazardZone.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    final latitude = readDouble(data['latitude'] ?? data['lat']);
+    final longitude = readDouble(
+      data['longitude'] ?? data['lng'] ?? data['lon'],
+    );
+    return DriverHazardZone(
+      id: doc.id,
+      name: readString(
+        data,
+        ['name', 'title'],
+        latitude == 0 || longitude == 0
+            ? 'Hazard zone'
+            : 'Hazard at ${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}',
+      ),
+      type: readString(data, ['type', 'category'], 'hazard'),
+      location: readString(data, ['location', 'address'], 'Detected Location'),
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: readDouble(data['radius'] ?? data['radiusMeters'], 250),
+      createdAt: readDate(data['createdAt']),
+      updatedAt: readDate(data['updatedAt']),
+      raw: data,
+    );
+  }
+}
+
 class DriverFeedback {
   DriverFeedback({
     required this.id,
