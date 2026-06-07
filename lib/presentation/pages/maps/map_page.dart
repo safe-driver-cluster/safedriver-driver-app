@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,7 +13,6 @@ import '../../../data/models/driver_models.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
-import '../../widgets/common/professional_widgets.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -35,7 +33,7 @@ class _MapPageState extends State<MapPage> {
   DriverBus? _assignedBus;
   DriverHazardZone? _selectedHazard;
   bool _locating = false;
-  bool _hazardsVisible = false;
+  bool _hazardsVisible = true;
   bool _trafficEnabled = false;
   MapType _mapType = MapType.normal;
 
@@ -58,80 +56,37 @@ class _MapPageState extends State<MapPage> {
   Future<void> _locateDriver({bool showErrors = true}) async {
     if (_locating) return;
     setState(() => _locating = true);
-    var usedLastKnownPosition = false;
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        if (showErrors) {
-          _message(
-            'Turn on location services to show your live position.',
-            action: SnackBarAction(
-              label: 'Location',
-              onPressed: Geolocator.openLocationSettings,
-            ),
-          );
-        }
-        return;
-      }
-
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        if (showErrors) {
-          _message(
-            permission == LocationPermission.deniedForever
-                ? 'Location permission is disabled in app settings.'
-                : 'Location permission is required to show your position.',
-            action: permission == LocationPermission.deniedForever
-                ? SnackBarAction(
-                    label: 'Settings',
-                    onPressed: Geolocator.openAppSettings,
-                  )
-                : null,
-          );
-        }
+        if (showErrors) _message('Location permission is required.');
         return;
-      }
-
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        usedLastKnownPosition = true;
-        _updatePosition(lastKnown, moveMap: true);
       }
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 8),
+        timeLimit: const Duration(seconds: 10),
       );
       _updatePosition(position, moveMap: true);
       await _positionSubscription?.cancel();
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          distanceFilter: 15,
+          distanceFilter: 20,
         ),
       ).listen(_updatePosition);
-    } on TimeoutException {
-      if (showErrors && !usedLastKnownPosition) {
-        _message(
-          'Waiting for GPS. On emulator, set a location from Extended controls.',
-        );
-      }
     } catch (_) {
-      if (showErrors && !usedLastKnownPosition) {
-        _message(
-          'Could not get your current location. Check location permission and GPS.',
-        );
-      }
+      if (showErrors) _message('Could not get your current location.');
     } finally {
       if (mounted) setState(() => _locating = false);
     }
   }
 
   void _updatePosition(Position position, {bool moveMap = false}) {
-    if (!mounted) return;
     final point = LatLng(position.latitude, position.longitude);
     setState(() => _currentPosition = point);
     if (moveMap) {
@@ -148,7 +103,28 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  void _focusAssignedBus() {
+  Future<void> _openNavigation() async {
+    final driver = AppScope.of(context).driver!;
+    final query = _searchController.text.trim();
+    final bus = _assignedBus;
+    final destination = query.isNotEmpty
+        ? query
+        : bus?.latitude != null && bus?.longitude != null
+        ? '${bus!.latitude},${bus.longitude}'
+        : driver.currentRoute.trim().isEmpty
+        ? 'bus depot'
+        : driver.currentRoute;
+    final uri = Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'destination': destination,
+      'travelmode': 'driving',
+    });
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _message('Could not open Google Maps navigation.');
+    }
+  }
+
+  void _focusBus() {
     final bus = _assignedBus;
     if (bus?.latitude == null || bus?.longitude == null) {
       _message('The assigned bus has not shared a location yet.');
@@ -159,92 +135,11 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Future<void> _openNavigation() async {
-    final query = _searchController.text.trim();
-    final bus = _assignedBus;
-    final destination = query.isNotEmpty
-        ? query
-        : bus?.latitude != null && bus?.longitude != null
-        ? '${bus!.latitude},${bus.longitude}'
-        : AppScope.of(context).driver!.currentRoute.trim().isEmpty
-        ? 'bus depot'
-        : AppScope.of(context).driver!.currentRoute;
-    final uri = Uri.https('www.google.com', '/maps/dir/', {
-      'api': '1',
-      'destination': destination,
-      'travelmode': 'driving',
-      'dir_action': 'navigate',
-    });
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _message('Could not open navigation on this device.');
-    }
-  }
-
-  Future<void> _search() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (_searchController.text.trim().isEmpty) {
-      _message('Enter a destination, bus stop, or route.');
-      return;
-    }
-    await _openNavigation();
-  }
-
-  void _message(String text, {SnackBarAction? action}) {
+  void _message(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text), action: action));
-  }
-
-  void _showHazards(List<DriverHazardZone> hazards) {
-    if (hazards.isEmpty) {
-      _message('No hazard zones are available.');
-      return;
-    }
-    setState(() {
-      _hazardsVisible = true;
-      _selectedHazard = null;
-    });
-    _fitHazards(hazards);
-  }
-
-  void _selectHazard(DriverHazardZone hazard) {
-    setState(() => _selectedHazard = hazard);
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(hazard.latitude, hazard.longitude)),
-    );
-  }
-
-  void _fitHazards(List<DriverHazardZone> hazards) {
-    final controller = _mapController;
-    if (controller == null || hazards.isEmpty) return;
-    final points = <LatLng>[
-      if (_currentPosition != null) _currentPosition!,
-      ...hazards.map((hazard) => LatLng(hazard.latitude, hazard.longitude)),
-    ];
-    if (points.length == 1) {
-      controller.animateCamera(CameraUpdate.newLatLngZoom(points.first, 15));
-      return;
-    }
-    var minLat = points.first.latitude;
-    var maxLat = points.first.latitude;
-    var minLng = points.first.longitude;
-    var maxLng = points.first.longitude;
-    for (final point in points.skip(1)) {
-      minLat = math.min(minLat, point.latitude);
-      maxLat = math.max(maxLat, point.latitude);
-      minLng = math.min(minLng, point.longitude);
-      maxLng = math.max(maxLng, point.longitude);
-    }
-    controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        64,
-      ),
-    );
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -260,35 +155,38 @@ class _MapPageState extends State<MapPage> {
           stream: _service.hazardZones(),
           builder: (context, hazardSnapshot) {
             final hazards = hazardSnapshot.data ?? const <DriverHazardZone>[];
-            return DriverPageShell(
-              title: 'Maps & Navigation',
-              subtitle: driver.currentRoute.isEmpty
-                  ? l10n.t('routeGuidance')
-                  : driver.currentRoute,
-              body: _MapBody(
+            return Scaffold(
+              extendBody: true,
+              body: _PassengerStyleMapScreen(
+                title: 'Maps & Navigation',
+                routeLabel: driver.currentRoute.isEmpty
+                    ? l10n.t('routeGuidance')
+                    : driver.currentRoute,
                 searchController: _searchController,
                 map: _buildMap(hazards),
+                bus: _assignedBus,
                 hazards: hazards,
                 hazardsVisible: _hazardsVisible,
-                selectedHazard: _selectedHazard,
-                bus: _assignedBus,
-                locating: _locating,
                 trafficEnabled: _trafficEnabled,
-                onSearch: _search,
+                locating: _locating,
+                selectedHazard: _selectedHazard,
+                onBack: () => Navigator.maybePop(context),
+                onSearch: _openNavigation,
                 onNavigate: _openNavigation,
-                onHazards: () => _showHazards(hazards),
-                onCloseHazard: () => setState(() => _selectedHazard = null),
-                onBus: _focusAssignedBus,
+                onLocate: _locateDriver,
+                onBus: _focusBus,
                 onZoomIn: () => _zoom(1),
                 onZoomOut: () => _zoom(-1),
-                onMapStyle: () => setState(() {
+                onToggleHazards: () =>
+                    setState(() => _hazardsVisible = !_hazardsVisible),
+                onToggleTraffic: () =>
+                    setState(() => _trafficEnabled = !_trafficEnabled),
+                onToggleMapType: () => setState(() {
                   _mapType = _mapType == MapType.normal
                       ? MapType.hybrid
                       : MapType.normal;
                 }),
-                onTraffic: () =>
-                    setState(() => _trafficEnabled = !_trafficEnabled),
-                onLocate: _locateDriver,
+                onCloseHazard: () => setState(() => _selectedHazard = null),
               ),
             );
           },
@@ -303,12 +201,7 @@ class _MapPageState extends State<MapPage> {
         Marker(
           markerId: const MarkerId('assigned_bus'),
           position: LatLng(_assignedBus!.latitude!, _assignedBus!.longitude!),
-          infoWindow: InfoWindow(
-            title: _assignedBus!.busNumber,
-            snippet: _assignedBus!.locationAddress.isEmpty
-                ? _assignedBus!.locationDepot
-                : _assignedBus!.locationAddress,
-          ),
+          infoWindow: InfoWindow(title: _assignedBus!.busNumber),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueViolet,
           ),
@@ -321,322 +214,446 @@ class _MapPageState extends State<MapPage> {
             infoWindow: InfoWindow(
               title: hazard.name,
               snippet:
-                  '${_hazardTypeLabel(hazard.type)} - ${hazard.radiusMeters.toStringAsFixed(0)} m radius',
+                  '${_labelFor(hazard.type)} - radius ${hazard.radiusMeters.toStringAsFixed(0)} m',
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(
-              _hazardMarkerHue(hazard.type),
+              BitmapDescriptor.hueRed,
             ),
-            onTap: () => _selectHazard(hazard),
+            onTap: () => setState(() => _selectedHazard = hazard),
           ),
         ),
     };
-    final circles = _hazardsVisible
-        ? hazards
-              .map(
-                (hazard) => Circle(
-                  circleId: CircleId('hazard_radius_${hazard.id}'),
-                  center: LatLng(hazard.latitude, hazard.longitude),
-                  radius: hazard.radiusMeters <= 0 ? 250 : hazard.radiusMeters,
-                  fillColor: _hazardColor(hazard.type).withValues(alpha: 0.16),
-                  strokeColor: _hazardColor(hazard.type),
-                  strokeWidth: 2,
-                ),
-              )
-              .toSet()
-        : const <Circle>{};
 
     return GoogleMap(
       initialCameraPosition: const CameraPosition(
         target: _fallbackCenter,
-        zoom: 14,
+        zoom: 13,
       ),
-      onMapCreated: (controller) {
-        _mapController = controller;
-        if (_currentPosition != null) {
-          controller.animateCamera(
-            CameraUpdate.newLatLngZoom(_currentPosition!, 16),
-          );
-        }
-      },
+      onMapCreated: (controller) => _mapController = controller,
       markers: markers,
-      circles: circles,
+      circles: _hazardsVisible
+          ? hazards
+                .map(
+                  (hazard) => Circle(
+                    circleId: CircleId('hazard_radius_${hazard.id}'),
+                    center: LatLng(hazard.latitude, hazard.longitude),
+                    radius: hazard.radiusMeters <= 0
+                        ? 250
+                        : hazard.radiusMeters,
+                    fillColor: AppColors.dangerColor.withValues(alpha: 0.12),
+                    strokeColor: AppColors.dangerColor,
+                    strokeWidth: 2,
+                  ),
+                )
+                .toSet()
+          : const <Circle>{},
       mapType: _mapType,
       trafficEnabled: _trafficEnabled,
       myLocationEnabled: _currentPosition != null,
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
-      buildingsEnabled: true,
       compassEnabled: true,
-      onTap: (_) {
-        if (_selectedHazard != null) setState(() => _selectedHazard = null);
-      },
+      onTap: (_) => setState(() => _selectedHazard = null),
     );
   }
 
-  Color _hazardColor(String type) {
-    switch (type.toLowerCase().trim()) {
-      case 'accident':
-        return AppColors.dangerColor;
-      case 'construction':
-        return AppColors.warningColor;
-      case 'flood':
-      case 'flooding':
-        return AppColors.infoColor;
-      case 'traffic':
-      case 'heavy_traffic':
-        return Colors.deepOrange;
-      case 'restricted':
-      case 'restricted_area':
-      case 'road_closed':
-        return AppColors.purpleColor;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
-
-  double _hazardMarkerHue(String type) {
-    switch (type.toLowerCase().trim()) {
-      case 'accident':
-        return BitmapDescriptor.hueRed;
-      case 'construction':
-        return BitmapDescriptor.hueYellow;
-      case 'flood':
-      case 'flooding':
-        return BitmapDescriptor.hueAzure;
-      case 'traffic':
-      case 'heavy_traffic':
-        return BitmapDescriptor.hueOrange;
-      case 'restricted':
-      case 'restricted_area':
-      case 'road_closed':
-        return BitmapDescriptor.hueViolet;
-      default:
-        return BitmapDescriptor.hueRose;
-    }
-  }
-
-  String _hazardTypeLabel(String type) {
-    if (type.trim().isEmpty) return 'Hazard';
-    return type
+  String _labelFor(String value) {
+    if (value.trim().isEmpty) return 'Hazard';
+    return value
         .replaceAll('_', ' ')
         .split(' ')
-        .where((part) => part.isNotEmpty)
-        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
 }
 
-class _MapBody extends StatelessWidget {
-  const _MapBody({
+class _PassengerStyleMapScreen extends StatelessWidget {
+  const _PassengerStyleMapScreen({
+    required this.title,
+    required this.routeLabel,
     required this.searchController,
     required this.map,
+    required this.bus,
     required this.hazards,
     required this.hazardsVisible,
-    required this.selectedHazard,
-    required this.bus,
-    required this.locating,
     required this.trafficEnabled,
+    required this.locating,
+    required this.selectedHazard,
+    required this.onBack,
     required this.onSearch,
     required this.onNavigate,
-    required this.onHazards,
-    required this.onCloseHazard,
+    required this.onLocate,
     required this.onBus,
     required this.onZoomIn,
     required this.onZoomOut,
-    required this.onMapStyle,
-    required this.onTraffic,
-    required this.onLocate,
+    required this.onToggleHazards,
+    required this.onToggleTraffic,
+    required this.onToggleMapType,
+    required this.onCloseHazard,
   });
 
+  final String title;
+  final String routeLabel;
   final TextEditingController searchController;
   final Widget map;
+  final DriverBus? bus;
   final List<DriverHazardZone> hazards;
   final bool hazardsVisible;
-  final DriverHazardZone? selectedHazard;
-  final DriverBus? bus;
-  final bool locating;
   final bool trafficEnabled;
+  final bool locating;
+  final DriverHazardZone? selectedHazard;
+  final VoidCallback onBack;
   final VoidCallback onSearch;
   final VoidCallback onNavigate;
-  final VoidCallback onHazards;
-  final VoidCallback onCloseHazard;
+  final VoidCallback onLocate;
   final VoidCallback onBus;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
-  final VoidCallback onMapStyle;
-  final VoidCallback onTraffic;
-  final VoidCallback onLocate;
+  final VoidCallback onToggleHazards;
+  final VoidCallback onToggleTraffic;
+  final VoidCallback onToggleMapType;
+  final VoidCallback onCloseHazard;
 
   @override
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final horizontal = wide ? 24.0 : 16.0;
     return Container(
-      color: th.subtleBackground,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      child: Column(
-        children: [
-          TextField(
-            controller: searchController,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => onSearch(),
-            decoration: InputDecoration(
-              hintText: 'Search destination, bus stop, or route',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: IconButton(
-                tooltip: 'Search in Google Maps',
-                onPressed: onSearch,
-                icon: const Icon(Icons.arrow_forward_rounded),
+      decoration: BoxDecoration(
+        gradient: th.isDark
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF0B1A42), Color(0xFF071225)],
+              )
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF2563EB),
+                  Color(0xFF1D4ED8),
+                  Color(0xFF8DB5FF),
+                ],
               ),
-              filled: true,
-              fillColor: th.cardBackground,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-                borderSide: BorderSide.none,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 0),
+          child: wide
+              ? Row(
+                  children: [
+                    SizedBox(
+                      width: 430,
+                      child: _TopControls(
+                        title: title,
+                        routeLabel: routeLabel,
+                        searchController: searchController,
+                        hazards: hazards,
+                        hazardsVisible: hazardsVisible,
+                        bus: bus,
+                        onBack: onBack,
+                        onSearch: onSearch,
+                        onNavigate: onNavigate,
+                        onToggleHazards: onToggleHazards,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: _mapCard()),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _TopControls(
+                      title: title,
+                      routeLabel: routeLabel,
+                      searchController: searchController,
+                      hazards: hazards,
+                      hazardsVisible: hazardsVisible,
+                      bus: bus,
+                      onBack: onBack,
+                      onSearch: onSearch,
+                      onNavigate: onNavigate,
+                      onToggleHazards: onToggleHazards,
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(child: _mapCard()),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mapCard() {
+    return Builder(
+      builder: (context) {
+        final wide = MediaQuery.sizeOf(context).width >= 900;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(
+            children: [
+              Positioned.fill(child: map),
+              Positioned(
+                right: wide ? 16 : 12,
+                top: wide ? 16 : 12,
+                child: _FloatingMapControls(
+                  locating: locating,
+                  trafficEnabled: trafficEnabled,
+                  onZoomIn: onZoomIn,
+                  onZoomOut: onZoomOut,
+                  onToggleMapType: onToggleMapType,
+                  onToggleTraffic: onToggleTraffic,
+                  onLocate: onLocate,
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-                borderSide: BorderSide(color: th.borderColor),
+              if (bus != null && wide)
+                Positioned(left: 20, top: 20, child: _BusMapPill(bus: bus!)),
+              if (selectedHazard != null)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.28),
+                  ),
+                ),
+              if (selectedHazard != null)
+                Positioned(
+                  left: wide ? 18 : 12,
+                  right: wide ? 18 : 12,
+                  bottom: wide ? 18 : 12,
+                  child: _HazardDetailsSheet(
+                    hazard: selectedHazard!,
+                    onClose: onCloseHazard,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TopControls extends StatelessWidget {
+  const _TopControls({
+    required this.title,
+    required this.routeLabel,
+    required this.searchController,
+    required this.hazards,
+    required this.hazardsVisible,
+    required this.bus,
+    required this.onBack,
+    required this.onSearch,
+    required this.onNavigate,
+    required this.onToggleHazards,
+  });
+
+  final String title;
+  final String routeLabel;
+  final TextEditingController searchController;
+  final List<DriverHazardZone> hazards;
+  final bool hazardsVisible;
+  final DriverBus? bus;
+  final VoidCallback onBack;
+  final VoidCallback onSearch;
+  final VoidCallback onNavigate;
+  final VoidCallback onToggleHazards;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MapHeader(title: title, routeLabel: routeLabel, onBack: onBack),
+        const SizedBox(height: 14),
+        _SearchBox(controller: searchController, onSearch: onSearch),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _PassengerActionButton(
+                icon: Icons.warning_amber_rounded,
+                label: hazardsVisible
+                    ? 'Hazards'
+                    : 'Hazards (${hazards.length})',
+                color: AppColors.dangerColor,
+                onTap: onToggleHazards,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _PassengerActionButton(
+                icon: Icons.directions_bus_rounded,
+                label: 'Navigate',
+                color: AppColors.purpleColor,
+                onTap: onNavigate,
+              ),
+            ),
+          ],
+        ),
+        if (bus != null) ...[
+          const SizedBox(height: 10),
+          _BusSummary(bus: bus!),
+        ],
+      ],
+    );
+  }
+}
+
+class _MapHeader extends StatelessWidget {
+  const _MapHeader({
+    required this.title,
+    required this.routeLabel,
+    required this.onBack,
+  });
+
+  final String title;
+  final String routeLabel;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Material(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onBack,
+            borderRadius: BorderRadius.circular(16),
+            child: const SizedBox(
+              height: 48,
+              width: 48,
+              child: Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 24,
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _PrimaryAction(
-                  icon: Icons.warning_amber_rounded,
-                  color: AppColors.dangerColor,
-                  label: hazards.isEmpty
-                      ? 'Hazards'
-                      : hazardsVisible
-                      ? 'Hazards on map (${hazards.length})'
-                      : 'Hazards (${hazards.length})',
-                  onTap: onHazards,
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.headline2.copyWith(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: AppFontWeights.extraBold,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PrimaryAction(
-                  icon: Icons.navigation_rounded,
-                  color: AppColors.purpleColor,
-                  label: 'Navigate',
-                  onTap: onNavigate,
+              const SizedBox(height: 4),
+              Text(
+                routeLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.white.withValues(alpha: 0.76),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Stack(
-                children: [
-                  Positioned.fill(child: map),
-                  if (bus != null)
-                    Positioned(
-                      left: 12,
-                      top: 12,
-                      right: 76,
-                      child: _BusMapCard(bus: bus!, onTap: onBus),
-                    ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Column(
-                      children: [
-                        _MapControl(icon: Icons.add_rounded, onTap: onZoomIn),
-                        const SizedBox(height: 8),
-                        _MapControl(
-                          icon: Icons.remove_rounded,
-                          onTap: onZoomOut,
-                        ),
-                        const SizedBox(height: 8),
-                        _MapControl(
-                          icon: Icons.layers_rounded,
-                          onTap: onMapStyle,
-                        ),
-                        const SizedBox(height: 8),
-                        _MapControl(
-                          icon: Icons.traffic_rounded,
-                          active: trafficEnabled,
-                          onTap: onTraffic,
-                        ),
-                        const SizedBox(height: 8),
-                        _MapControl(
-                          icon: Icons.directions_bus_rounded,
-                          onTap: onBus,
-                        ),
-                        const SizedBox(height: 8),
-                        _MapControl(
-                          icon: locating
-                              ? Icons.hourglass_top_rounded
-                              : Icons.my_location_rounded,
-                          onTap: onLocate,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (selectedHazard != null)
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 12,
-                      child: _HazardDetailsCard(
-                        hazard: selectedHazard!,
-                        onClose: onCloseHazard,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SearchBox extends StatelessWidget {
+  const _SearchBox({required this.controller, required this.onSearch});
+
+  final TextEditingController controller;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Material(
+      color: th.isDark ? const Color(0xFF0B111D) : Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.16),
+      child: TextField(
+        controller: controller,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => onSearch(),
+        style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Search destination or bus stop',
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: th.textSecondary.withValues(alpha: 0.72),
           ),
-        ],
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppColors.primaryColor,
+            size: 22,
+          ),
+          suffixIcon: IconButton(
+            onPressed: onSearch,
+            icon: const Icon(Icons.arrow_forward_rounded),
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+        ),
       ),
     );
   }
 }
 
-class _PrimaryAction extends StatelessWidget {
-  const _PrimaryAction({
+class _PassengerActionButton extends StatelessWidget {
+  const _PassengerActionButton({
     required this.icon,
-    required this.color,
     required this.label,
+    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
-  final Color color;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
     return Material(
-      color: th.cardBackground,
-      borderRadius: BorderRadius.circular(18),
+      color: th.isDark ? const Color(0xFF111827) : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          height: 58,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: th.borderColor),
-            boxShadow: th.isDark ? null : AppDesign.shadowSM,
-          ),
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: 56,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 9),
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: th.textPrimary,
+                    fontSize: 15,
                     fontWeight: AppFontWeights.extraBold,
                   ),
                 ),
@@ -645,6 +662,52 @@ class _PrimaryAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FloatingMapControls extends StatelessWidget {
+  const _FloatingMapControls({
+    required this.locating,
+    required this.trafficEnabled,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onToggleMapType,
+    required this.onToggleTraffic,
+    required this.onLocate,
+  });
+
+  final bool locating;
+  final bool trafficEnabled;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onToggleMapType;
+  final VoidCallback onToggleTraffic;
+  final VoidCallback onLocate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _MapControl(icon: Icons.add_rounded, onTap: onZoomIn),
+        const SizedBox(height: 8),
+        _MapControl(icon: Icons.remove_rounded, onTap: onZoomOut),
+        const SizedBox(height: 8),
+        _MapControl(icon: Icons.image_rounded, onTap: onToggleMapType),
+        const SizedBox(height: 8),
+        _MapControl(
+          icon: Icons.traffic_rounded,
+          active: trafficEnabled,
+          onTap: onToggleTraffic,
+        ),
+        const SizedBox(height: 8),
+        _MapControl(
+          icon: locating
+              ? Icons.hourglass_top_rounded
+              : Icons.my_location_rounded,
+          onTap: onLocate,
+        ),
+      ],
     );
   }
 }
@@ -662,21 +725,26 @@ class _MapControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     return Material(
       color: active
           ? AppColors.primaryColor
-          : ThemeHelper.of(context).cardBackground,
-      elevation: 3,
-      borderRadius: BorderRadius.circular(15),
+          : th.isDark
+          ? const Color(0xFF111827)
+          : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          width: 48,
-          height: 48,
+          height: 44,
+          width: 44,
           child: Icon(
             icon,
             color: active ? Colors.white : AppColors.primaryColor,
+            size: 22,
           ),
         ),
       ),
@@ -684,138 +752,264 @@ class _MapControl extends StatelessWidget {
   }
 }
 
-class _BusMapCard extends StatelessWidget {
-  const _BusMapCard({required this.bus, required this.onTap});
+class _BusSummary extends StatelessWidget {
+  const _BusSummary({required this.bus});
 
   final DriverBus bus;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
     final location = bus.locationAddress.isNotEmpty
         ? bus.locationAddress
         : bus.locationDepot;
-    return Material(
-      color: ThemeHelper.of(context).cardBackground.withValues(alpha: 0.94),
-      elevation: 3,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: Row(
-            children: [
-              const CircleAvatar(
-                backgroundColor: AppColors.cardTint,
-                child: Icon(
-                  Icons.directions_bus_rounded,
-                  color: AppColors.primaryColor,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bus.busNumber,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: AppFontWeights.extraBold,
-                      ),
-                    ),
-                    Text(
-                      location.isEmpty ? 'Assigned bus' : location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption.copyWith(
-                        color: ThemeHelper.of(context).textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: th.isDark ? 0.08 : 0.16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.cardTint,
+            child: Icon(
+              Icons.directions_bus_rounded,
+              color: AppColors.primaryColor,
+              size: 20,
+            ),
           ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bus.busNumber,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                Text(
+                  location.isEmpty ? 'Assigned bus' : location,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white.withValues(alpha: 0.78),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusMapPill extends StatelessWidget {
+  const _BusMapPill({required this.bus});
+
+  final DriverBus bus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(12),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.directions_bus_rounded,
+              color: AppColors.primaryColor,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              bus.busNumber,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: AppFontWeights.extraBold,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _HazardDetailsCard extends StatelessWidget {
-  const _HazardDetailsCard({required this.hazard, required this.onClose});
+class _HazardDetailsSheet extends StatelessWidget {
+  const _HazardDetailsSheet({required this.hazard, required this.onClose});
 
   final DriverHazardZone hazard;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final th = ThemeHelper.of(context);
     return Material(
-      color: th.cardBackground.withValues(alpha: 0.96),
-      elevation: 8,
+      color: const Color(0xFF1F2B3F),
+      elevation: 10,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: AppColors.dangerColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: const Icon(
-                Icons.warning_rounded,
-                color: AppColors.dangerColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    hazard.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: AppFontWeights.extraBold,
-                    ),
+            Row(
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerColor.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${hazard.type.replaceAll('_', ' ')} - ${hazard.radiusMeters.toStringAsFixed(0)} m radius',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.dangerColor,
-                      fontWeight: AppFontWeights.bold,
-                    ),
+                  child: const Icon(
+                    Icons.car_crash_rounded,
+                    color: AppColors.dangerColor,
+                    size: 24,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hazard.location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption.copyWith(
-                      color: th.textSecondary,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hazard.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.headline3.copyWith(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _labelFor(hazard.type),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.dangerColor,
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFFD1D5DB),
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _HazardInfoRow(
+              icon: Icons.location_on_rounded,
+              label: 'Location',
+              value: hazard.location.isEmpty
+                  ? 'Detected Location'
+                  : hazard.location,
+            ),
+            _HazardInfoRow(
+              icon: Icons.radar_rounded,
+              label: 'Radius',
+              value: '${hazard.radiusMeters.toStringAsFixed(0)} m',
+            ),
+            _HazardInfoRow(
+              icon: Icons.gps_fixed_rounded,
+              label: 'Coordinates',
+              value:
+                  '${hazard.latitude.toStringAsFixed(5)}, ${hazard.longitude.toStringAsFixed(5)}',
+            ),
+            if (hazard.updatedAt != null)
+              _HazardInfoRow(
+                icon: Icons.access_time_rounded,
+                label: 'Updated',
+                value: _formatDate(hazard.updatedAt!),
               ),
-            ),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              onPressed: onClose,
-              icon: Icon(Icons.close_rounded, color: th.textSecondary),
-            ),
+            if (hazard.createdAt != null)
+              _HazardInfoRow(
+                icon: Icons.add_circle_outline_rounded,
+                label: 'Created',
+                value: _formatDate(hazard.createdAt!),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _labelFor(String value) {
+    if (value.trim().isEmpty) return 'Hazard';
+    return value
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
+  String _formatDate(DateTime value) {
+    return '${value.month}/${value.day}/${value.year} '
+        '${value.hour.toString().padLeft(2, '0')}:'
+        '${value.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _HazardInfoRow extends StatelessWidget {
+  const _HazardInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primaryColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: const Color(0xFFB9C3D5),
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

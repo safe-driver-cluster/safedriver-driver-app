@@ -6,6 +6,7 @@ import '../presentation/pages/auth/otp_page.dart';
 import '../presentation/pages/auth/splash_page.dart';
 import '../presentation/pages/dashboard/driver_dashboard_page.dart';
 import '../presentation/pages/language/language_selection_page.dart';
+import '../presentation/pages/maps/map_page.dart';
 import '../presentation/pages/onboarding/onboarding_page.dart';
 
 class AppRoutes {
@@ -15,6 +16,7 @@ class AppRoutes {
   static const login = '/login';
   static const otp = '/otp';
   static const dashboard = '/dashboard';
+  static const maps = '/maps';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -33,6 +35,8 @@ class AppRoutes {
             ? settings.arguments as int
             : 0;
         return _route(DriverDashboardPage(initialIndex: initialIndex));
+      case maps:
+        return _route(const MapPage());
       default:
         return _route(const SplashPage());
     }

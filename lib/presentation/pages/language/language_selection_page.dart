@@ -16,6 +16,12 @@ class LanguageSelectionPage extends StatefulWidget {
 class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
   Locale _selected = const Locale('en');
 
+  Future<void> _continue() async {
+    await AppScope.of(context).setLocale(_selected);
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -23,8 +29,8 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
               Color(0xFF4F83FF),
               AppColors.primaryColor,
@@ -33,81 +39,144 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              children: [
-                const SizedBox(height: 70),
-                const CircleAvatar(
-                  radius: 32,
-                  backgroundColor: Colors.white24,
-                  child: Icon(
-                    Icons.language_rounded,
-                    color: Colors.white,
-                    size: 34,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  l10n.t('selectLanguage'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: AppFontWeights.extraBold,
-                  ),
-                ),
-                const SizedBox(height: 48),
-                _LanguageTile(
-                  flag: '🇺🇸',
-                  title: 'English',
-                  subtitle: 'English',
-                  selected: _selected.languageCode == 'en',
-                  onTap: () => setState(() => _selected = const Locale('en')),
-                ),
-                _LanguageTile(
-                  flag: '🇱🇰',
-                  title: 'සිංහල',
-                  subtitle: 'Sinhala',
-                  selected: _selected.languageCode == 'si',
-                  onTap: () => setState(() => _selected = const Locale('si')),
-                ),
-                _LanguageTile(
-                  flag: '🇱🇰',
-                  title: 'தமிழ்',
-                  subtitle: 'Tamil',
-                  selected: _selected.languageCode == 'ta',
-                  onTap: () => setState(() => _selected = const Locale('ta')),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primaryColor,
-                    ),
-                    onPressed: () async {
-                      await AppScope.of(context).setLocale(_selected);
-                      if (!context.mounted) return;
-                      Navigator.pushReplacementNamed(
-                        context,
-                        AppRoutes.onboarding,
-                      );
-                    },
-                    child: Text(
-                      l10n.t('continueText'),
-                      style: const TextStyle(
-                        fontWeight: AppFontWeights.extraBold,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 48),
-              ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 820;
+              return Padding(
+                padding: EdgeInsets.all(wide ? 42 : 28),
+                child: wide
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: _LanguageHero(
+                              title: l10n.t('selectLanguage'),
+                            ),
+                          ),
+                          const SizedBox(width: 36),
+                          SizedBox(width: 480, child: _selector(l10n, wide)),
+                        ],
+                      )
+                    : _selector(l10n, wide),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _selector(AppLocalizations l10n, bool wide) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!wide) ...[
+          const Spacer(),
+          const CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.language_rounded, color: Colors.white, size: 34),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            l10n.t('selectLanguage'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: AppFontWeights.extraBold,
+            ),
+          ),
+          const SizedBox(height: 42),
+        ] else
+          const Spacer(),
+        _LanguageTile(
+          flag: '🇺🇸',
+          title: 'English',
+          subtitle: 'English',
+          selected: _selected.languageCode == 'en',
+          onTap: () => setState(() => _selected = const Locale('en')),
+        ),
+        _LanguageTile(
+          flag: '🇱🇰',
+          title: 'සිංහල',
+          subtitle: 'Sinhala',
+          selected: _selected.languageCode == 'si',
+          onTap: () => setState(() => _selected = const Locale('si')),
+        ),
+        _LanguageTile(
+          flag: '🇱🇰',
+          title: 'தமிழ்',
+          subtitle: 'Tamil',
+          selected: _selected.languageCode == 'ta',
+          onTap: () => setState(() => _selected = const Locale('ta')),
+        ),
+        const Spacer(),
+        SizedBox(
+          height: 56,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: _continue,
+            child: Text(
+              l10n.t('continueText'),
+              style: const TextStyle(fontWeight: AppFontWeights.extraBold),
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _LanguageHero extends StatelessWidget {
+  const _LanguageHero({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: double.infinity,
+      padding: const EdgeInsets.all(38),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircleAvatar(
+            radius: 38,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.language_rounded, color: Colors.white, size: 40),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 48,
+              height: 1.05,
+              fontWeight: AppFontWeights.extraBold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Choose the language for your driver workspace. You can change this later from settings.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 17,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -134,12 +203,13 @@ class _LanguageTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(14),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: selected ? 0.22 : 0.10),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: Colors.white.withValues(alpha: selected ? 0.85 : 0.18),
               width: selected ? 2 : 1,
@@ -147,7 +217,7 @@ class _LanguageTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Text(flag, style: const TextStyle(fontSize: 26)),
+              Text(flag, style: const TextStyle(fontSize: 28)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

@@ -108,6 +108,7 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
       title: l10n.t(titleKey),
       subtitle: _index == 0 ? l10n.t('tagline') : null,
       showBack: true,
+      selectedNavIndex: _index,
       actions: [
         DriverIconButton(
           tooltip: l10n.t('settings'),
@@ -156,25 +157,90 @@ class _DashboardHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final driver = AppScope.of(context).driver!;
     final l10n = AppLocalizations.of(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-      children: [
-        _DriverOverviewCard(driver: driver, l10n: l10n),
-        const SizedBox(height: 16),
-        Text(
-          'Quick actions',
-          style: AppTextStyles.title.copyWith(
-            fontWeight: AppFontWeights.extraBold,
-          ),
-        ),
-        const SizedBox(height: 10),
-        GridView.count(
-          crossAxisCount: 2,
-          childAspectRatio: 1.58,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 920;
+        final padding = wide
+            ? const EdgeInsets.fromLTRB(30, 26, 30, 32)
+            : const EdgeInsets.fromLTRB(14, 14, 14, 20);
+        return ListView(
+          padding: padding,
+          children: [
+            if (wide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _DriverOverviewCard(driver: driver, l10n: l10n),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    flex: 2,
+                    child: _DashboardCommandCard(driver: driver, l10n: l10n),
+                  ),
+                ],
+              )
+            else
+              _DriverOverviewCard(driver: driver, l10n: l10n),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Quick actions',
+                    style: AppTextStyles.title.copyWith(
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                  ),
+                ),
+                if (wide)
+                  Text(
+                    'Choose a workspace to continue',
+                    style: AppTextStyles.caption.copyWith(
+                      color: ThemeHelper.of(context).textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _ActionGrid(driver: driver, l10n: l10n, onOpen: onOpen),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ActionGrid extends StatelessWidget {
+  const _ActionGrid({
+    required this.driver,
+    required this.l10n,
+    required this.onOpen,
+  });
+
+  final dynamic driver;
+  final AppLocalizations l10n;
+  final ValueChanged<int> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns = width >= 1300
+            ? 5
+            : width >= 980
+            ? 4
+            : width >= 680
+            ? 3
+            : 2;
+        return GridView.count(
+          crossAxisCount: columns,
+          childAspectRatio: width >= 680 ? 1.7 : 1.58,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
           children: [
             DashboardActionTile(
               title: l10n.t('myAttendance'),
@@ -275,8 +341,120 @@ class _DashboardHome extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ],
+        );
+      },
+    );
+  }
+}
+
+class _DashboardCommandCard extends StatelessWidget {
+  const _DashboardCommandCard({required this.driver, required this.l10n});
+
+  final dynamic driver;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppDesign.shadowLG,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Welcome back, ${driver.fullName}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.headline2.copyWith(
+                    color: Colors.white,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  driver.currentRoute.isEmpty
+                      ? l10n.t('routeGuidance')
+                      : driver.currentRoute,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _CommandPill(
+                      icon: Icons.directions_bus_rounded,
+                      label: driver.currentBusId.isEmpty
+                          ? l10n.t('noAssignedBuses')
+                          : driver.currentBusId,
+                    ),
+                    _CommandPill(
+                      icon: Icons.star_rounded,
+                      label: '${driver.rating.toStringAsFixed(1)} rating',
+                    ),
+                    _CommandPill(
+                      icon: Icons.radio_button_checked_rounded,
+                      label: driver.isOnDuty
+                          ? l10n.t('active')
+                          : l10n.t('inactive'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          Icon(
+            Icons.route_rounded,
+            color: Colors.white.withValues(alpha: 0.22),
+            size: 130,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommandPill extends StatelessWidget {
+  const _CommandPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.white,
+              fontWeight: AppFontWeights.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -481,11 +479,22 @@ class _MediaBox extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
-                  Image.file(
-                    File(media!.path),
-                    height: 146,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                  FutureBuilder(
+                    future: media!.readAsBytes(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const SizedBox(
+                          height: 146,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      return Image.memory(
+                        snapshot.data!,
+                        height: 146,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                   Positioned(
                     right: 8,

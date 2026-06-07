@@ -323,6 +323,8 @@ class DriverPageShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final driver = AppScope.of(context).driver;
+    final useNavigationRail =
+        MediaQuery.sizeOf(context).width >= 900 && driver != null;
     final navBar =
         bottomNavigationBar ??
         (driver == null
@@ -339,6 +341,25 @@ class DriverPageShell extends StatelessWidget {
                 },
                 items: _driverNavItems(context),
               ));
+    final shellBody = useNavigationRail
+        ? Row(
+            children: [
+              _DriverNavigationRail(
+                selectedIndex: selectedNavIndex.clamp(0, 3).toInt(),
+                items: _driverNavItems(context),
+                onSelected: (value) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/dashboard',
+                    (_) => false,
+                    arguments: value,
+                  );
+                },
+              ),
+              Expanded(child: DriverResponsiveBody(child: body)),
+            ],
+          )
+        : DriverResponsiveBody(child: body);
     return Scaffold(
       appBar: DriverGradientAppBar(
         title: title,
@@ -346,8 +367,8 @@ class DriverPageShell extends StatelessWidget {
         actions: actions,
         showBack: showBack,
       ),
-      body: body,
-      bottomNavigationBar: navBar,
+      body: shellBody,
+      bottomNavigationBar: useNavigationRail ? null : navBar,
     );
   }
 
@@ -365,5 +386,154 @@ class DriverPageShell extends StatelessWidget {
       ),
       DriverNavItem(icon: Icons.person_rounded, label: l10n.t('profile')),
     ];
+  }
+}
+
+class _DriverNavigationRail extends StatelessWidget {
+  const _DriverNavigationRail({
+    required this.selectedIndex,
+    required this.items,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final List<DriverNavItem> items;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      width: 260,
+      decoration: BoxDecoration(
+        gradient: th.isDark
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white, Color(0xFFF4F8FF)],
+              ),
+        color: th.isDark ? th.cardBackground : null,
+        border: Border(right: BorderSide(color: th.borderColor)),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+          child: Column(
+            children: [
+              _RailBrand(th: th),
+              const SizedBox(height: 22),
+              Expanded(
+                child: NavigationRail(
+                  extended: true,
+                  minExtendedWidth: 228,
+                  backgroundColor: Colors.transparent,
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: onSelected,
+                  labelType: NavigationRailLabelType.none,
+                  indicatorColor: AppColors.primaryColor.withValues(
+                    alpha: 0.12,
+                  ),
+                  selectedIconTheme: const IconThemeData(
+                    color: AppColors.primaryColor,
+                  ),
+                  unselectedIconTheme: IconThemeData(color: th.textSecondary),
+                  selectedLabelTextStyle: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.primaryColor,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                  unselectedLabelTextStyle: AppTextStyles.bodyMedium.copyWith(
+                    color: th.textSecondary,
+                    fontWeight: AppFontWeights.medium,
+                  ),
+                  destinations: [
+                    for (final item in items)
+                      NavigationRailDestination(
+                        icon: Icon(item.icon),
+                        selectedIcon: Icon(item.icon),
+                        label: Text(item.label),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.primaryColor.withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Text(
+                  'Driver operations console',
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailBrand extends StatelessWidget {
+  const _RailBrand({required this.th});
+
+  final ThemeHelper th;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            gradient: AppColors.heroGradient,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: th.isDark ? null : AppDesign.shadowSM,
+          ),
+          child: const Icon(Icons.drive_eta_rounded, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SafeDriver',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
+                ),
+              ),
+              Text(
+                'Driver web',
+                style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class DriverResponsiveBody extends StatelessWidget {
+  const DriverResponsiveBody({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(child: child);
   }
 }
