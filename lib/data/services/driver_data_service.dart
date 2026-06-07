@@ -259,6 +259,21 @@ class DriverDataService {
     );
   }
 
+  Stream<List<DriverHazardZone>> hazardZones() {
+    return _firestore.collection('hazards').limit(100).snapshots().map((snap) {
+      final hazards = snap.docs
+          .map(DriverHazardZone.fromDoc)
+          .where((hazard) => hazard.hasLocation)
+          .toList();
+      hazards.sort((a, b) {
+        final aTime = a.updatedAt ?? a.createdAt ?? DateTime(1900);
+        final bTime = b.updatedAt ?? b.createdAt ?? DateTime(1900);
+        return bTime.compareTo(aTime);
+      });
+      return hazards;
+    });
+  }
+
   Stream<List<DriverBus>> buses(DriverProfile driver) {
     var query = _firestore.collection('vehicles').limit(50);
     if (driver.currentBusId.isNotEmpty) {
