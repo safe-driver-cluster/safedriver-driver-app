@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -320,6 +321,8 @@ class _PassengerStyleMapScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
     final wide = MediaQuery.sizeOf(context).width >= 900;
+    if (kIsWeb && wide) return _buildWebLayout(context, th);
+
     final horizontal = wide ? 24.0 : 14.0;
     final topGap = wide ? 12.0 : 10.0;
     final mapGap = wide ? 16.0 : 10.0;
@@ -387,6 +390,99 @@ class _PassengerStyleMapScreen extends StatelessWidget {
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWebLayout(BuildContext context, ThemeHelper th) {
+    return ColoredBox(
+      color: th.pageBackground,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 390,
+                child: _WebMapPanel(
+                  title: title,
+                  routeLabel: routeLabel,
+                  searchController: searchController,
+                  hazards: hazards,
+                  hazardsVisible: hazardsVisible,
+                  bus: bus,
+                  onBack: onBack,
+                  onSearch: onSearch,
+                  onNavigate: onNavigate,
+                  onToggleHazards: onToggleHazards,
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(child: _webMapCard()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _webMapCard() {
+    return Builder(
+      builder: (context) {
+        final th = ThemeHelper.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: th.borderColor),
+            boxShadow: th.isDark ? null : AppDesign.shadowSM,
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(child: map),
+              Positioned(
+                right: 18,
+                top: 18,
+                child: _FloatingMapControls(
+                  locating: locating,
+                  trafficEnabled: trafficEnabled,
+                  onZoomIn: onZoomIn,
+                  onZoomOut: onZoomOut,
+                  onToggleMapType: onToggleMapType,
+                  onToggleTraffic: onToggleTraffic,
+                  onLocate: onLocate,
+                ),
+              ),
+              if (bus != null)
+                Positioned(left: 18, top: 18, child: _BusMapPill(bus: bus!)),
+              Positioned(
+                left: 18,
+                bottom: 18,
+                child: _WebMapLegend(
+                  hazardsVisible: hazardsVisible,
+                  trafficEnabled: trafficEnabled,
+                  hazardCount: hazards.length,
+                ),
+              ),
+              if (selectedHazard != null)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.28),
+                  ),
+                ),
+              if (selectedHazard != null)
+                Positioned(
+                  left: 18,
+                  right: 18,
+                  bottom: 18,
+                  child: _HazardDetailsSheet(
+                    hazard: selectedHazard!,
+                    onClose: onCloseHazard,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -497,6 +593,368 @@ class _TopControls extends StatelessWidget {
           ],
         ),
         if (bus != null) ...[const SizedBox(height: 9), _BusSummary(bus: bus!)],
+      ],
+    );
+  }
+}
+
+class _WebMapPanel extends StatelessWidget {
+  const _WebMapPanel({
+    required this.title,
+    required this.routeLabel,
+    required this.searchController,
+    required this.hazards,
+    required this.hazardsVisible,
+    required this.bus,
+    required this.onBack,
+    required this.onSearch,
+    required this.onNavigate,
+    required this.onToggleHazards,
+  });
+
+  final String title;
+  final String routeLabel;
+  final TextEditingController searchController;
+  final List<DriverHazardZone> hazards;
+  final bool hazardsVisible;
+  final DriverBus? bus;
+  final VoidCallback onBack;
+  final VoidCallback onSearch;
+  final VoidCallback onNavigate;
+  final VoidCallback onToggleHazards;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _WebBackButton(onBack: onBack),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.headline3.copyWith(
+                        color: th.textPrimary,
+                        fontWeight: AppFontWeights.extraBold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      routeLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: th.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _SearchBox(controller: searchController, onSearch: onSearch),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _PassengerActionButton(
+                  icon: Icons.warning_amber_rounded,
+                  label: hazardsVisible
+                      ? 'Hazards'
+                      : 'Hazards (${hazards.length})',
+                  color: AppColors.dangerColor,
+                  onTap: onToggleHazards,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PassengerActionButton(
+                  icon: Icons.directions_rounded,
+                  label: 'Navigate',
+                  color: AppColors.purpleColor,
+                  onTap: onNavigate,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (bus != null) _WebBusPanel(bus: bus!),
+          const SizedBox(height: 16),
+          _WebMapStatGrid(
+            hazardCount: hazards.length,
+            hazardsVisible: hazardsVisible,
+            hasBus: bus != null,
+          ),
+          const Spacer(),
+          Text(
+            'Use the map controls to switch traffic, satellite view, zoom, or recenter on your location.',
+            style: AppTextStyles.caption.copyWith(
+              color: th.textSecondary,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebBackButton extends StatelessWidget {
+  const _WebBackButton({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onBack,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.arrow_back_rounded,
+          color: AppColors.primaryColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _WebBusPanel extends StatelessWidget {
+  const _WebBusPanel({required this.bus});
+
+  final DriverBus bus;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    final location = bus.locationAddress.isNotEmpty
+        ? bus.locationAddress
+        : bus.locationDepot;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.directions_bus_rounded,
+              color: AppColors.primaryColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bus.busNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  location.isEmpty ? 'Assigned bus' : location,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebMapStatGrid extends StatelessWidget {
+  const _WebMapStatGrid({
+    required this.hazardCount,
+    required this.hazardsVisible,
+    required this.hasBus,
+  });
+
+  final int hazardCount;
+  final bool hazardsVisible;
+  final bool hasBus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _WebMapStat(
+            label: 'Hazards',
+            value: hazardsVisible ? hazardCount.toString() : 'Off',
+            icon: Icons.warning_amber_rounded,
+            color: AppColors.dangerColor,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _WebMapStat(
+            label: 'Bus signal',
+            value: hasBus ? 'Ready' : 'Waiting',
+            icon: Icons.sensors_rounded,
+            color: AppColors.secondaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WebMapStat extends StatelessWidget {
+  const _WebMapStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 19),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: th.textPrimary,
+              fontWeight: AppFontWeights.extraBold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebMapLegend extends StatelessWidget {
+  const _WebMapLegend({
+    required this.hazardsVisible,
+    required this.trafficEnabled,
+    required this.hazardCount,
+  });
+
+  final bool hazardsVisible;
+  final bool trafficEnabled;
+  final int hazardCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(14),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LegendItem(
+              color: AppColors.dangerColor,
+              label: hazardsVisible ? '$hazardCount hazards' : 'Hazards off',
+            ),
+            const SizedBox(width: 12),
+            _LegendItem(
+              color: AppColors.primaryColor,
+              label: trafficEnabled ? 'Traffic on' : 'Traffic off',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 8,
+          width: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: AppFontWeights.bold,
+          ),
+        ),
       ],
     );
   }

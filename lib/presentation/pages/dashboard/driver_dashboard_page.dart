@@ -109,6 +109,7 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
       subtitle: _index == 0 ? l10n.t('tagline') : null,
       showBack: true,
       selectedNavIndex: _index,
+      onNavSelected: (value) => setState(() => _index = value),
       actions: [
         DriverIconButton(
           tooltip: l10n.t('settings'),
@@ -161,24 +162,26 @@ class _DashboardHome extends StatelessWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 920;
         final padding = wide
-            ? const EdgeInsets.fromLTRB(30, 26, 30, 32)
+            ? const EdgeInsets.fromLTRB(32, 26, 28, 32)
             : const EdgeInsets.fromLTRB(14, 14, 14, 20);
         return ListView(
           padding: padding,
           children: [
             if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _DriverOverviewCard(driver: driver, l10n: l10n),
-                  ),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    flex: 2,
-                    child: _DashboardCommandCard(driver: driver, l10n: l10n),
-                  ),
-                ],
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: 420,
+                      child: _DriverOverviewCard(driver: driver, l10n: l10n),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: _DashboardCommandCard(driver: driver, l10n: l10n),
+                    ),
+                  ],
+                ),
               )
             else
               _DriverOverviewCard(driver: driver, l10n: l10n),
@@ -236,7 +239,13 @@ class _ActionGrid extends StatelessWidget {
             : 2;
         return GridView.count(
           crossAxisCount: columns,
-          childAspectRatio: width >= 680 ? 1.7 : 1.58,
+          childAspectRatio: width >= 1300
+              ? 2.1
+              : width >= 980
+              ? 1.95
+              : width >= 680
+              ? 1.7
+              : 1.58,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/routes.dart';
@@ -71,61 +72,454 @@ class _SettingsPageState extends State<SettingsPage> {
     final app = AppScope.of(context);
     final driver = app.driver;
     final l10n = AppLocalizations.of(context);
+    final useWebLayout = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
 
     return DriverPageShell(
       title: l10n.t('settings'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+      body: useWebLayout
+          ? _WebSettingsView(
+              app: app,
+              driverAvailable: driver != null,
+              l10n: l10n,
+              refreshing: _refreshing,
+              loggingOut: _loggingOut,
+              onRefreshProfile: _refreshProfile,
+              onLogout: _confirmLogout,
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+              children: [
+                _SectionTitle(title: l10n.t('appPreferences')),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  children: [
+                    _ThemeModeTile(
+                      mode: app.themeMode,
+                      onChanged: app.setThemeMode,
+                      l10n: l10n,
+                    ),
+                    _LanguageTile(
+                      locale: app.locale,
+                      onChanged: app.setLocale,
+                      l10n: l10n,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _SectionTitle(title: l10n.t('settingsFunctions')),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  children: [
+                    _ActionTile(
+                      icon: Icons.sync_rounded,
+                      label: l10n.t('refreshProfile'),
+                      value: l10n.t('refreshProfileHint'),
+                      loading: _refreshing,
+                      onTap: driver == null ? null : _refreshProfile,
+                    ),
+                    _ActionTile(
+                      icon: Icons.support_agent_rounded,
+                      label: l10n.t('support'),
+                      value: l10n.t('contactAdmin'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SupportPage()),
+                      ),
+                    ),
+                    _ActionTile(
+                      icon: Icons.logout_rounded,
+                      label: l10n.t('logout'),
+                      value: l10n.t('logoutSettingsHint'),
+                      loading: _loggingOut,
+                      danger: true,
+                      showDivider: false,
+                      onTap: _confirmLogout,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _WebSettingsView extends StatelessWidget {
+  const _WebSettingsView({
+    required this.app,
+    required this.driverAvailable,
+    required this.l10n,
+    required this.refreshing,
+    required this.loggingOut,
+    required this.onRefreshProfile,
+    required this.onLogout,
+  });
+
+  final AppController app;
+  final bool driverAvailable;
+  final AppLocalizations l10n;
+  final bool refreshing;
+  final bool loggingOut;
+  final VoidCallback onRefreshProfile;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: _WebSettingsPanel(
+                title: l10n.t('appPreferences'),
+                subtitle: 'Personalize the driver console experience.',
+                children: [
+                  _WebThemeSelector(
+                    mode: app.themeMode,
+                    onChanged: app.setThemeMode,
+                    l10n: l10n,
+                  ),
+                  const SizedBox(height: 12),
+                  _WebLanguageSelector(
+                    locale: app.locale,
+                    onChanged: app.setLocale,
+                    l10n: l10n,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 4,
+              child: _WebSettingsPanel(
+                title: l10n.t('settingsFunctions'),
+                subtitle: 'Account actions and support tools.',
+                children: [
+                  _WebActionCard(
+                    icon: Icons.sync_rounded,
+                    title: l10n.t('refreshProfile'),
+                    subtitle: l10n.t('refreshProfileHint'),
+                    loading: refreshing,
+                    onTap: driverAvailable ? onRefreshProfile : null,
+                  ),
+                  const SizedBox(height: 12),
+                  _WebActionCard(
+                    icon: Icons.support_agent_rounded,
+                    title: l10n.t('support'),
+                    subtitle: l10n.t('contactAdmin'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SupportPage()),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _WebActionCard(
+                    icon: Icons.logout_rounded,
+                    title: l10n.t('logout'),
+                    subtitle: l10n.t('logoutSettingsHint'),
+                    danger: true,
+                    loading: loggingOut,
+                    onTap: onLogout,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WebSettingsPanel extends StatelessWidget {
+  const _WebSettingsPanel({
+    required this.title,
+    required this.subtitle,
+    required this.children,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(title: l10n.t('appPreferences')),
-          const SizedBox(height: 8),
-          _SettingsCard(
-            children: [
-              _ThemeModeTile(
-                mode: app.themeMode,
-                onChanged: app.setThemeMode,
-                l10n: l10n,
-              ),
-              _LanguageTile(
-                locale: app.locale,
-                onChanged: app.setLocale,
-                l10n: l10n,
-              ),
-            ],
+          Text(
+            title,
+            style: AppTextStyles.title.copyWith(
+              color: th.textPrimary,
+              fontWeight: AppFontWeights.extraBold,
+            ),
           ),
-          const SizedBox(height: 16),
-          _SectionTitle(title: l10n.t('settingsFunctions')),
-          const SizedBox(height: 8),
-          _SettingsCard(
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _WebThemeSelector extends StatelessWidget {
+  const _WebThemeSelector({
+    required this.mode,
+    required this.onChanged,
+    required this.l10n,
+  });
+
+  final ThemeMode mode;
+  final ValueChanged<ThemeMode> onChanged;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return _WebChoiceGroup<ThemeMode>(
+      icon: Icons.contrast_rounded,
+      title: l10n.t('theme'),
+      value: mode,
+      options: [
+        _WebChoiceOption(ThemeMode.system, l10n.t('systemDefault')),
+        _WebChoiceOption(ThemeMode.light, l10n.t('lightMode')),
+        _WebChoiceOption(ThemeMode.dark, l10n.t('darkMode')),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _WebLanguageSelector extends StatelessWidget {
+  const _WebLanguageSelector({
+    required this.locale,
+    required this.onChanged,
+    required this.l10n,
+  });
+
+  final Locale locale;
+  final ValueChanged<Locale> onChanged;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return _WebChoiceGroup<Locale>(
+      icon: Icons.language_rounded,
+      title: l10n.t('language'),
+      value: locale,
+      options: const [
+        _WebChoiceOption(Locale('en'), 'English'),
+        _WebChoiceOption(Locale('si'), '\u0dc3\u0dd2\u0d82\u0dc4\u0dbd'),
+        _WebChoiceOption(Locale('ta'), '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd'),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _WebChoiceOption<T> {
+  const _WebChoiceOption(this.value, this.label);
+
+  final T value;
+  final String label;
+}
+
+class _WebChoiceGroup<T> extends StatelessWidget {
+  const _WebChoiceGroup({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final T value;
+  final List<_WebChoiceOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: th.inputFill,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              _ActionTile(
-                icon: Icons.sync_rounded,
-                label: l10n.t('refreshProfile'),
-                value: l10n.t('refreshProfileHint'),
-                loading: _refreshing,
-                onTap: driver == null ? null : _refreshProfile,
+              Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, color: AppColors.primaryColor, size: 20),
               ),
-              _ActionTile(
-                icon: Icons.support_agent_rounded,
-                label: l10n.t('support'),
-                value: l10n.t('contactAdmin'),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SupportPage()),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
                 ),
               ),
-              _ActionTile(
-                icon: Icons.logout_rounded,
-                label: l10n.t('logout'),
-                value: l10n.t('logoutSettingsHint'),
-                loading: _loggingOut,
-                danger: true,
-                showDivider: false,
-                onTap: _confirmLogout,
-              ),
             ],
           ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options.map((option) {
+              final selected = option.value == value;
+              return GestureDetector(
+                onTap: () => onChanged(option.value),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primaryColor
+                        : th.cardBackground,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: selected ? AppColors.primaryColor : th.borderColor,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (selected) ...[
+                        const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 15,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        option.label,
+                        style: AppTextStyles.caption.copyWith(
+                          color: selected ? Colors.white : th.textPrimary,
+                          fontWeight: selected
+                              ? AppFontWeights.extraBold
+                              : AppFontWeights.medium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _WebActionCard extends StatelessWidget {
+  const _WebActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.loading = false,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final bool loading;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    final color = danger ? AppColors.dangerColor : AppColors.primaryColor;
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: th.inputFill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: th.borderColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: danger ? AppColors.dangerColor : th.textPrimary,
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(
+                      color: th.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (loading)
+              const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Icon(Icons.arrow_forward_rounded, color: color, size: 20),
+          ],
+        ),
       ),
     );
   }

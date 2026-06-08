@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_font_weights.dart';
@@ -38,6 +39,13 @@ class BusesPage extends StatelessWidget {
           return EmptyState(
             message: l10n.t('noAssignedBuses'),
             icon: Icons.directions_bus_filled_rounded,
+          );
+        }
+        if (kIsWeb && MediaQuery.sizeOf(context).width >= 900) {
+          return _WebBusesView(
+            buses: data,
+            driver: driver,
+            routeLabel: _routeLabel,
           );
         }
         return ListView.separated(
@@ -205,6 +213,332 @@ class BusesPage extends StatelessWidget {
     if (driverRoute.isNotEmpty) return driverRoute;
     if (bus.routeId.isNotEmpty) return bus.routeId;
     return 'Assigned vehicle';
+  }
+}
+
+class _WebBusesView extends StatelessWidget {
+  const _WebBusesView({
+    required this.buses,
+    required this.driver,
+    required this.routeLabel,
+  });
+
+  final List<DriverBus> buses;
+  final DriverProfile driver;
+  final String Function(DriverBus bus, String driverRoute) routeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = buses
+        .where(
+          (bus) => bus.status.toLowerCase().replaceAll('_', ' ') == 'active',
+        )
+        .length;
+    final trackedCount = buses
+        .where((bus) => bus.latitude != null && bus.longitude != null)
+        .length;
+    final avgSafety = buses
+        .where((bus) => bus.safetyScore > 0)
+        .map((bus) => bus.safetyScore)
+        .toList();
+    final safetyText = avgSafety.isEmpty
+        ? '-'
+        : (avgSafety.reduce((a, b) => a + b) / avgSafety.length)
+              .toStringAsFixed(0);
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 18),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _WebBusMetric(
+                        label: 'Assigned buses',
+                        value: buses.length.toString(),
+                        icon: Icons.directions_bus_rounded,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _WebBusMetric(
+                        label: 'Active',
+                        value: activeCount.toString(),
+                        icon: Icons.radio_button_checked_rounded,
+                        color: AppColors.secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _WebBusMetric(
+                        label: 'Tracked',
+                        value: trackedCount.toString(),
+                        icon: Icons.gps_fixed_rounded,
+                        color: AppColors.infoColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _WebBusMetric(
+                        label: 'Safety avg',
+                        value: safetyText,
+                        icon: Icons.shield_rounded,
+                        color: AppColors.warningColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _WebSectionTitle(title: 'Assigned fleet', count: buses.length),
+              ],
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
+          sliver: SliverLayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.crossAxisExtent >= 1280 ? 2 : 1;
+              return SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: columns == 2 ? 2.65 : 4.7,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _WebBusCard(
+                    bus: buses[index],
+                    driver: driver,
+                    routeText: routeLabel(buses[index], driver.currentRoute),
+                  ),
+                  childCount: buses.length,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WebBusMetric extends StatelessWidget {
+  const _WebBusMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      height: 96,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.headline3.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebSectionTitle extends StatelessWidget {
+  const _WebSectionTitle({required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Row(
+      children: [
+        Text(
+          title,
+          style: AppTextStyles.title.copyWith(
+            color: th.textPrimary,
+            fontWeight: AppFontWeights.extraBold,
+          ),
+        ),
+        const SizedBox(width: 10),
+        _StatusPill(label: '$count total'),
+      ],
+    );
+  }
+}
+
+class _WebBusCard extends StatelessWidget {
+  const _WebBusCard({
+    required this.bus,
+    required this.driver,
+    required this.routeText,
+  });
+
+  final DriverBus bus;
+  final DriverProfile driver;
+  final String routeText;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.directions_bus_rounded,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bus.busNumber,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.title.copyWith(
+                        color: th.textPrimary,
+                        fontWeight: AppFontWeights.extraBold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      routeText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: th.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusPill(label: bus.status),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _DetailChip(
+                  icon: Icons.directions_bus_filled_rounded,
+                  label: 'Model',
+                  value: bus.model,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DetailChip(
+                  icon: Icons.alt_route_rounded,
+                  label: 'Route ID',
+                  value: bus.routeId,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DetailChip(
+                  icon: Icons.business_rounded,
+                  label: 'Depot',
+                  value: bus.locationDepot,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          _DetailRow(
+            icon: Icons.person_rounded,
+            label: 'Assigned driver',
+            value: bus.driverName.isEmpty ? driver.fullName : bus.driverName,
+          ),
+          _DetailRow(
+            icon: Icons.location_on_rounded,
+            label: 'Current location',
+            value: bus.locationAddress.isEmpty
+                ? bus.locationDepot
+                : bus.locationAddress,
+          ),
+          _DetailRow(
+            icon: Icons.sensors_rounded,
+            label: 'Device ID',
+            value: bus.deviceId,
+          ),
+        ],
+      ),
+    );
   }
 }
 

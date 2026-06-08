@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_font_weights.dart';
@@ -37,33 +38,64 @@ class _HeaderActionSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.22),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryDark.withValues(alpha: 0.16),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+    if (!kIsWeb) {
+      return Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  width: 1,
                 ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryDark.withValues(alpha: 0.16),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Center(child: child),
             ),
-            child: Center(child: child),
           ),
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: GestureDetector(
+        onTap: onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.22),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryDark.withValues(alpha: 0.16),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Center(child: child),
         ),
       ),
     );
@@ -112,12 +144,14 @@ class DriverGradientAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final radius = isWide ? 0.0 : 24.0;
     final topPadding = MediaQuery.paddingOf(context).top;
     final canNavigateBack = showBack && Navigator.canPop(context);
     return Material(
       color: Colors.transparent,
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(radius)),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -154,7 +188,12 @@ class DriverGradientAppBar extends StatelessWidget
               top: topPadding,
               bottom: 0,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                padding: EdgeInsets.fromLTRB(
+                  isWide ? 28 : 16,
+                  8,
+                  isWide ? 16 : 16,
+                  14,
+                ),
                 child: Row(
                   children: [
                     if (canNavigateBack) ...[
@@ -310,6 +349,7 @@ class DriverPageShell extends StatelessWidget {
     this.showBack = true,
     this.bottomNavigationBar,
     this.selectedNavIndex = 0,
+    this.onNavSelected,
   });
 
   final String title;
@@ -319,6 +359,7 @@ class DriverPageShell extends StatelessWidget {
   final bool showBack;
   final Widget? bottomNavigationBar;
   final int selectedNavIndex;
+  final ValueChanged<int>? onNavSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -347,14 +388,16 @@ class DriverPageShell extends StatelessWidget {
               _DriverNavigationRail(
                 selectedIndex: selectedNavIndex.clamp(0, 3).toInt(),
                 items: _driverNavItems(context),
-                onSelected: (value) {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/dashboard',
-                    (_) => false,
-                    arguments: value,
-                  );
-                },
+                onSelected:
+                    onNavSelected ??
+                    (value) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/dashboard',
+                        (_) => false,
+                        arguments: value,
+                      );
+                    },
               ),
               Expanded(child: DriverResponsiveBody(child: body)),
             ],
@@ -404,18 +447,10 @@ class _DriverNavigationRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
     return Container(
-      width: 260,
+      width: 248,
       decoration: BoxDecoration(
-        gradient: th.isDark
-            ? null
-            : const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.white, Color(0xFFF4F8FF)],
-              ),
-        color: th.isDark ? th.cardBackground : null,
+        color: th.cardBackground,
         border: Border(right: BorderSide(color: th.borderColor)),
-        boxShadow: th.isDark ? null : AppDesign.shadowSM,
       ),
       child: SafeArea(
         top: false,
@@ -426,58 +461,75 @@ class _DriverNavigationRail extends StatelessWidget {
               _RailBrand(th: th),
               const SizedBox(height: 22),
               Expanded(
-                child: NavigationRail(
-                  extended: true,
-                  minExtendedWidth: 228,
-                  backgroundColor: Colors.transparent,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onSelected,
-                  labelType: NavigationRailLabelType.none,
-                  indicatorColor: AppColors.primaryColor.withValues(
-                    alpha: 0.12,
-                  ),
-                  selectedIconTheme: const IconThemeData(
-                    color: AppColors.primaryColor,
-                  ),
-                  unselectedIconTheme: IconThemeData(color: th.textSecondary),
-                  selectedLabelTextStyle: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.primaryColor,
-                    fontWeight: AppFontWeights.extraBold,
-                  ),
-                  unselectedLabelTextStyle: AppTextStyles.bodyMedium.copyWith(
-                    color: th.textSecondary,
-                    fontWeight: AppFontWeights.medium,
-                  ),
-                  destinations: [
-                    for (final item in items)
-                      NavigationRailDestination(
-                        icon: Icon(item.icon),
-                        selectedIcon: Icon(item.icon),
-                        label: Text(item.label),
+                child: Column(
+                  children: [
+                    for (var index = 0; index < items.length; index++) ...[
+                      _RailDestinationButton(
+                        item: items[index],
+                        selected: selectedIndex == index,
+                        onTap: () => onSelected(index),
                       ),
+                      const SizedBox(height: 8),
+                    ],
                   ],
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Text(
-                  'Driver operations console',
-                  style: AppTextStyles.caption.copyWith(
-                    color: th.textSecondary,
-                    height: 1.35,
-                  ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailDestinationButton extends StatelessWidget {
+  const _RailDestinationButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DriverNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryColor.withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              item.icon,
+              color: selected ? AppColors.primaryColor : th.textSecondary,
+              size: 22,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: selected ? AppColors.primaryColor : th.textSecondary,
+                  fontWeight: selected
+                      ? AppFontWeights.extraBold
+                      : AppFontWeights.medium,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
