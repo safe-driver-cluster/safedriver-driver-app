@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_font_weights.dart';
@@ -37,33 +38,64 @@ class _HeaderActionSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.22),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryDark.withValues(alpha: 0.16),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+    if (!kIsWeb) {
+      return Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  width: 1,
                 ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryDark.withValues(alpha: 0.16),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Center(child: child),
             ),
-            child: Center(child: child),
           ),
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: GestureDetector(
+        onTap: onPressed,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.22),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryDark.withValues(alpha: 0.16),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Center(child: child),
         ),
       ),
     );
@@ -112,12 +144,14 @@ class DriverGradientAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final radius = isWide ? 0.0 : 24.0;
     final topPadding = MediaQuery.paddingOf(context).top;
     final canNavigateBack = showBack && Navigator.canPop(context);
     return Material(
       color: Colors.transparent,
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(radius)),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -154,7 +188,12 @@ class DriverGradientAppBar extends StatelessWidget
               top: topPadding,
               bottom: 0,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                padding: EdgeInsets.fromLTRB(
+                  isWide ? 28 : 16,
+                  8,
+                  isWide ? 16 : 16,
+                  14,
+                ),
                 child: Row(
                   children: [
                     if (canNavigateBack) ...[
@@ -310,6 +349,7 @@ class DriverPageShell extends StatelessWidget {
     this.showBack = true,
     this.bottomNavigationBar,
     this.selectedNavIndex = 0,
+    this.onNavSelected,
   });
 
   final String title;
@@ -319,10 +359,13 @@ class DriverPageShell extends StatelessWidget {
   final bool showBack;
   final Widget? bottomNavigationBar;
   final int selectedNavIndex;
+  final ValueChanged<int>? onNavSelected;
 
   @override
   Widget build(BuildContext context) {
     final driver = AppScope.of(context).driver;
+    final useNavigationRail =
+        MediaQuery.sizeOf(context).width >= 900 && driver != null;
     final navBar =
         bottomNavigationBar ??
         (driver == null
@@ -339,6 +382,27 @@ class DriverPageShell extends StatelessWidget {
                 },
                 items: _driverNavItems(context),
               ));
+    final shellBody = useNavigationRail
+        ? Row(
+            children: [
+              _DriverNavigationRail(
+                selectedIndex: selectedNavIndex.clamp(0, 3).toInt(),
+                items: _driverNavItems(context),
+                onSelected:
+                    onNavSelected ??
+                    (value) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/dashboard',
+                        (_) => false,
+                        arguments: value,
+                      );
+                    },
+              ),
+              Expanded(child: DriverResponsiveBody(child: body)),
+            ],
+          )
+        : DriverResponsiveBody(child: body);
     return Scaffold(
       appBar: DriverGradientAppBar(
         title: title,
@@ -346,8 +410,8 @@ class DriverPageShell extends StatelessWidget {
         actions: actions,
         showBack: showBack,
       ),
-      body: body,
-      bottomNavigationBar: navBar,
+      body: shellBody,
+      bottomNavigationBar: useNavigationRail ? null : navBar,
     );
   }
 
@@ -365,5 +429,163 @@ class DriverPageShell extends StatelessWidget {
       ),
       DriverNavItem(icon: Icons.person_rounded, label: l10n.t('profile')),
     ];
+  }
+}
+
+class _DriverNavigationRail extends StatelessWidget {
+  const _DriverNavigationRail({
+    required this.selectedIndex,
+    required this.items,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final List<DriverNavItem> items;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      width: 248,
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        border: Border(right: BorderSide(color: th.borderColor)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+          child: Column(
+            children: [
+              _RailBrand(th: th),
+              const SizedBox(height: 22),
+              Expanded(
+                child: Column(
+                  children: [
+                    for (var index = 0; index < items.length; index++) ...[
+                      _RailDestinationButton(
+                        item: items[index],
+                        selected: selectedIndex == index,
+                        onTap: () => onSelected(index),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailDestinationButton extends StatelessWidget {
+  const _RailDestinationButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DriverNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryColor.withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              item.icon,
+              color: selected ? AppColors.primaryColor : th.textSecondary,
+              size: 22,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: selected ? AppColors.primaryColor : th.textSecondary,
+                  fontWeight: selected
+                      ? AppFontWeights.extraBold
+                      : AppFontWeights.medium,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RailBrand extends StatelessWidget {
+  const _RailBrand({required this.th});
+
+  final ThemeHelper th;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            gradient: AppColors.heroGradient,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: th.isDark ? null : AppDesign.shadowSM,
+          ),
+          child: const Icon(Icons.drive_eta_rounded, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SafeDriver',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
+                ),
+              ),
+              Text(
+                'Driver web',
+                style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class DriverResponsiveBody extends StatelessWidget {
+  const DriverResponsiveBody({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(child: child);
   }
 }

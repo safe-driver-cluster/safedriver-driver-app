@@ -109,6 +109,15 @@ class AppLocalizations {
       'loginFailed': 'Login failed. Please check the code and try again.',
       'complaintSent': 'Complaint sent to admin.',
       'fieldRequired': 'This field is required',
+      'mapsNavigation': 'Maps & Navigation',
+      'yourLocation': 'Your Location',
+      'currentPosition': 'Current position',
+      'navigate': 'Navigate',
+      'unableToLoadMap': 'Unable to load map',
+      'retry': 'Retry',
+      'loadingMap': 'Loading map...',
+      'busRouteToDestination': 'Bus Route to Destination',
+      'hazardZones': 'Hazard Zones',
     },
     'si': {
       'appName': 'සේෆ් ඩ්‍රයිවර් රියදුරු',
@@ -316,6 +325,16 @@ class AppLocalizations {
   String t(String key) {
     return _values[locale.languageCode]?[key] ?? _values['en']![key] ?? key;
   }
+
+  String get mapsNavigation => t('mapsNavigation');
+  String get yourLocation => t('yourLocation');
+  String get currentPosition => t('currentPosition');
+  String get navigate => t('navigate');
+  String get unableToLoadMap => t('unableToLoadMap');
+  String get retry => t('retry');
+  String get loadingMap => t('loadingMap');
+  String get busRouteToDestination => t('busRouteToDestination');
+  String get hazardZones => t('hazardZones');
 
   String authErrorMessage(String? code, {String fallbackKey = 'loginFailed'}) {
     return t(switch (code) {

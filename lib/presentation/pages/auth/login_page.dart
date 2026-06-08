@@ -96,8 +96,8 @@ class _LoginPageState extends State<LoginPage> {
           body: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
                   AppColors.primaryColor,
                   AppColors.primaryDark,
@@ -106,109 +106,237 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             child: SafeArea(
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.40,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 112,
-                          height: 112,
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: AppDesign.shadowLG,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 860;
+                  if (wide) {
+                    return Padding(
+                      padding: const EdgeInsets.all(34),
+                      child: Row(
+                        children: [
+                          Expanded(child: _LoginBrandPanel(l10n: l10n)),
+                          const SizedBox(width: 34),
+                          SizedBox(
+                            width: 480,
+                            child: _LoginFormPanel(
+                              th: th,
+                              l10n: l10n,
+                              formKey: _formKey,
+                              phone: _phone,
+                              selectedCountryCode: _selectedCountryCode,
+                              errorMessage: _errorMessage,
+                              isLoading: _viewModel.isLoading,
+                              onCountryCodeChanged: (code) => setState(() {
+                                _selectedCountryCode = code;
+                                _errorMessage = null;
+                              }),
+                              onPhoneChanged: (_) {
+                                if (_errorMessage != null) {
+                                  setState(() => _errorMessage = null);
+                                }
+                              },
+                              onSubmit: _sendOtp,
+                            ),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: Image.asset('assets/images/logo.png'),
-                          ),
-                        ),
-                        const SizedBox(height: AppDesign.spaceXL),
-                        Text(
-                          l10n.t('loginTitle'),
-                          style: const TextStyle(
-                            fontSize: 34,
-                            fontWeight: AppFontWeights.extraBold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: AppDesign.spaceSM),
-                        Text(
-                          l10n.t('loginSubtitle'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withValues(alpha: 0.86),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AppDesign.spaceXL),
-                      decoration: BoxDecoration(
-                        color: th.cardBackground,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          topRight: Radius.circular(32),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.40,
+                        child: _LoginBrandPanel(l10n: l10n, compact: true),
+                      ),
+                      Expanded(
+                        child: _LoginFormPanel(
+                          th: th,
+                          l10n: l10n,
+                          formKey: _formKey,
+                          phone: _phone,
+                          selectedCountryCode: _selectedCountryCode,
+                          errorMessage: _errorMessage,
+                          isLoading: _viewModel.isLoading,
+                          onCountryCodeChanged: (code) => setState(() {
+                            _selectedCountryCode = code;
+                            _errorMessage = null;
+                          }),
+                          onPhoneChanged: (_) {
+                            if (_errorMessage != null) {
+                              setState(() => _errorMessage = null);
+                            }
+                          },
+                          onSubmit: _sendOtp,
+                          mobile: true,
                         ),
                       ),
-                      child: SingleChildScrollView(
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              PhoneNumberField(
-                                controller: _phone,
-                                selectedCountryCode: _selectedCountryCode,
-                                onCountryCodeChanged: (code) => setState(() {
-                                  _selectedCountryCode = code;
-                                  _errorMessage = null;
-                                }),
-                                labelText: l10n.t('phoneNumber'),
-                                validator: (value) {
-                                  if (value == null ||
-                                      value.trim().length < 9) {
-                                    return l10n.t('phoneRequired');
-                                  }
-                                  return null;
-                                },
-                                onChanged: (_) {
-                                  if (_errorMessage != null) {
-                                    setState(() => _errorMessage = null);
-                                  }
-                                },
-                              ),
-                              if (_errorMessage != null) ...[
-                                const SizedBox(height: AppDesign.spaceLG),
-                                AuthErrorMessage(message: _errorMessage!),
-                              ],
-                              const SizedBox(height: AppDesign.space2XL),
-                              GradientButton(
-                                label: l10n.t('sendOtp'),
-                                icon: Icons.sms_rounded,
-                                isLoading: _viewModel.isLoading,
-                                onPressed: _sendOtp,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _LoginBrandPanel extends StatelessWidget {
+  const _LoginBrandPanel({required this.l10n, this.compact = false});
+
+  final AppLocalizations l10n;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(compact ? 0 : 36),
+      decoration: compact
+          ? null
+          : BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(34),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: compact
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: compact ? 112 : 132,
+            height: compact ? 112 : 132,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: AppDesign.shadowLG,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Image.asset('assets/images/logo.png'),
+            ),
+          ),
+          const SizedBox(height: AppDesign.spaceXL),
+          Text(
+            l10n.t('loginTitle'),
+            textAlign: compact ? TextAlign.center : TextAlign.start,
+            style: TextStyle(
+              fontSize: compact ? 34 : 48,
+              height: 1.05,
+              fontWeight: AppFontWeights.extraBold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: AppDesign.spaceSM),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Text(
+              l10n.t('loginSubtitle'),
+              textAlign: compact ? TextAlign.center : TextAlign.start,
+              style: TextStyle(
+                fontSize: compact ? 16 : 18,
+                height: 1.45,
+                color: Colors.white.withValues(alpha: 0.86),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoginFormPanel extends StatelessWidget {
+  const _LoginFormPanel({
+    required this.th,
+    required this.l10n,
+    required this.formKey,
+    required this.phone,
+    required this.selectedCountryCode,
+    required this.errorMessage,
+    required this.isLoading,
+    required this.onCountryCodeChanged,
+    required this.onPhoneChanged,
+    required this.onSubmit,
+    this.mobile = false,
+  });
+
+  final ThemeHelper th;
+  final AppLocalizations l10n;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController phone;
+  final String selectedCountryCode;
+  final String? errorMessage;
+  final bool isLoading;
+  final ValueChanged<String> onCountryCodeChanged;
+  final ValueChanged<String> onPhoneChanged;
+  final VoidCallback onSubmit;
+  final bool mobile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDesign.spaceXL),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(mobile ? 32 : 30),
+        boxShadow: mobile ? null : AppDesign.shadowLG,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Sign in to dashboard',
+                style: AppTextStyles.headline3.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter your registered driver phone number to continue.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: AppDesign.space2XL),
+              PhoneNumberField(
+                controller: phone,
+                selectedCountryCode: selectedCountryCode,
+                onCountryCodeChanged: onCountryCodeChanged,
+                labelText: l10n.t('phoneNumber'),
+                validator: (value) {
+                  if (value == null || value.trim().length < 9) {
+                    return l10n.t('phoneRequired');
+                  }
+                  return null;
+                },
+                onChanged: onPhoneChanged,
+              ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: AppDesign.spaceLG),
+                AuthErrorMessage(message: errorMessage!),
+              ],
+              const SizedBox(height: AppDesign.space2XL),
+              GradientButton(
+                label: l10n.t('sendOtp'),
+                icon: Icons.sms_rounded,
+                isLoading: isLoading,
+                onPressed: onSubmit,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

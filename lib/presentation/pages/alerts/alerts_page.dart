@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -100,6 +101,28 @@ class _AlertsPageState extends State<AlertsPage> {
         debugPrint(
           '[AlertsPage.filtered] type=$_selectedType dateFilter=$_dateFilter range=$_customDateRange count=${filtered.length}',
         );
+
+        final useWebLayout = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
+        if (useWebLayout) {
+          return _WebAlertsView(
+            allAlerts: data,
+            filteredAlerts: filtered,
+            types: types,
+            selectedType: _selectedType,
+            dateFilter: _dateFilter,
+            dateRange: _customDateRange,
+            onRefresh: _refresh,
+            onDateFilterSelected: _selectDateFilter,
+            onCustomDateRange: _pickCustomDateRange,
+            onTypeSelected: (value) {
+              debugPrint('[AlertsPage.filter] type=$value local filter only');
+              setState(() => _selectedType = value);
+            },
+            emptyMessage: data.isEmpty
+                ? l10n.t('noAlerts')
+                : 'No matching alerts',
+          );
+        }
 
         return RefreshIndicator(
           onRefresh: _refresh,
@@ -251,6 +274,495 @@ class _AlertsPageState extends State<AlertsPage> {
       _dateFilter = 'custom';
       _customDateRange = picked;
     });
+  }
+}
+
+class _WebAlertsView extends StatelessWidget {
+  const _WebAlertsView({
+    required this.allAlerts,
+    required this.filteredAlerts,
+    required this.types,
+    required this.selectedType,
+    required this.dateFilter,
+    required this.dateRange,
+    required this.onRefresh,
+    required this.onDateFilterSelected,
+    required this.onCustomDateRange,
+    required this.onTypeSelected,
+    required this.emptyMessage,
+  });
+
+  final List<DriverAlert> allAlerts;
+  final List<DriverAlert> filteredAlerts;
+  final List<String> types;
+  final String selectedType;
+  final String dateFilter;
+  final DateTimeRange? dateRange;
+  final Future<void> Function() onRefresh;
+  final ValueChanged<String> onDateFilterSelected;
+  final VoidCallback onCustomDateRange;
+  final ValueChanged<String> onTypeSelected;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    final highCount = filteredAlerts
+        .where((alert) => alert.priority.toLowerCase().contains('high'))
+        .length;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final todayCount = filteredAlerts.where((alert) {
+      final createdAt = alert.createdAt;
+      return createdAt != null && DateUtils.isSameDay(createdAt, today);
+    }).length;
+    final activeTypes = filteredAlerts
+        .map((alert) => alert.type.trim().toLowerCase())
+        .where((type) => type.isNotEmpty)
+        .toSet()
+        .length;
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 18),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _WebAlertMetricCard(
+                          label: 'Visible alerts',
+                          value: filteredAlerts.length.toString(),
+                          icon: Icons.notifications_active_rounded,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _WebAlertMetricCard(
+                          label: 'High priority',
+                          value: highCount.toString(),
+                          icon: Icons.priority_high_rounded,
+                          color: AppColors.dangerColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _WebAlertMetricCard(
+                          label: 'Today',
+                          value: todayCount.toString(),
+                          icon: Icons.today_rounded,
+                          color: AppColors.infoColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _WebAlertMetricCard(
+                          label: 'Alert types',
+                          value: activeTypes.toString(),
+                          icon: Icons.category_rounded,
+                          color: AppColors.purpleColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _WebAlertFilters(
+                    types: types,
+                    selectedType: selectedType,
+                    dateFilter: dateFilter,
+                    dateRange: dateRange,
+                    onDateFilterSelected: onDateFilterSelected,
+                    onCustomDateRange: onCustomDateRange,
+                    onTypeSelected: onTypeSelected,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Text(
+                        'Alert activity',
+                        style: AppTextStyles.title.copyWith(
+                          color: th.textPrimary,
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _Pill(
+                        label:
+                            '${filteredAlerts.length} of ${allAlerts.length}',
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (filteredAlerts.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyState(
+                message: emptyMessage,
+                icon: Icons.notifications_off_rounded,
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.crossAxisExtent >= 1320 ? 3 : 2;
+                  return SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: columns == 3 ? 2.72 : 2.58,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) =>
+                          _WebAlertCard(alert: filteredAlerts[index]),
+                      childCount: filteredAlerts.length,
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebAlertMetricCard extends StatelessWidget {
+  const _WebAlertMetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return Container(
+      height: 96,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowSM,
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.headline3.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebAlertFilters extends StatelessWidget {
+  const _WebAlertFilters({
+    required this.types,
+    required this.selectedType,
+    required this.dateFilter,
+    required this.dateRange,
+    required this.onDateFilterSelected,
+    required this.onCustomDateRange,
+    required this.onTypeSelected,
+  });
+
+  final List<String> types;
+  final String selectedType;
+  final String dateFilter;
+  final DateTimeRange? dateRange;
+  final ValueChanged<String> onDateFilterSelected;
+  final VoidCallback onCustomDateRange;
+  final ValueChanged<String> onTypeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    final dateItems = [
+      const _DateFilterItem(value: 'all', label: 'All dates'),
+      const _DateFilterItem(value: 'today', label: 'Today'),
+      const _DateFilterItem(value: '7d', label: '7 days'),
+      const _DateFilterItem(value: '30d', label: '30 days'),
+      _DateFilterItem(value: 'custom', label: _customLabel()),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: th.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Filter alerts',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textPrimary,
+                  fontWeight: AppFontWeights.extraBold,
+                ),
+              ),
+              const Spacer(),
+              Wrap(
+                spacing: 8,
+                children: dateItems
+                    .map(
+                      (item) => _WebFilterButton(
+                        label: item.label,
+                        icon: item.value == 'custom'
+                            ? Icons.date_range_rounded
+                            : Icons.calendar_today_rounded,
+                        selected: dateFilter == item.value,
+                        onTap: item.value == 'custom'
+                            ? onCustomDateRange
+                            : () => onDateFilterSelected(item.value),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: types
+                .map(
+                  (type) => _WebFilterButton(
+                    label: type == 'all' ? 'All alerts' : _humanize(type),
+                    icon: type == 'all'
+                        ? Icons.done_all_rounded
+                        : _detailIconFor(type),
+                    selected: selectedType == type,
+                    onTap: () => onTypeSelected(type),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _customLabel() {
+    if (dateFilter != 'custom' || dateRange == null) return 'Date range';
+    final format = DateFormat.MMMd();
+    return '${format.format(dateRange!.start)} - ${format.format(dateRange!.end)}';
+  }
+}
+
+class _WebFilterButton extends StatelessWidget {
+  const _WebFilterButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final th = ThemeHelper.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryColor : th.inputFill,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: selected ? AppColors.primaryColor : th.borderColor,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? Icons.check_rounded : icon,
+              size: 15,
+              color: selected ? Colors.white : AppColors.primaryColor,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: selected ? Colors.white : th.textPrimary,
+                fontWeight: selected
+                    ? AppFontWeights.extraBold
+                    : AppFontWeights.medium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WebAlertCard extends StatelessWidget {
+  const _WebAlertCard({required this.alert});
+
+  final DriverAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _detailColorFor(alert.type);
+    final th = ThemeHelper.of(context);
+    return GestureDetector(
+      onTap: () => _showAlertDetails(context, alert),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: th.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: th.borderColor),
+          boxShadow: th.isDark ? null : AppDesign.shadowSM,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 42,
+                  width: 42,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_detailIconFor(alert.type), color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alert.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: th.textPrimary,
+                          fontWeight: AppFontWeights.extraBold,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _formatDetailDate(alert.createdAt),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          color: th.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _Pill(label: alert.priority, color: color),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              alert.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: th.textPrimary,
+                height: 1.35,
+              ),
+            ),
+            const Spacer(),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (alert.type.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.category_rounded,
+                    label: _humanize(alert.type),
+                    color: color,
+                  ),
+                if (alert.numberPlate.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.confirmation_number_rounded,
+                    label: alert.numberPlate,
+                    color: AppColors.primaryColor,
+                  ),
+                if (alert.status.isNotEmpty)
+                  _InfoChip(
+                    icon: Icons.radio_button_checked_rounded,
+                    label: _humanize(alert.status),
+                    color: AppColors.infoColor,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

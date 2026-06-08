@@ -89,75 +89,81 @@ class _OnboardingPageState extends State<OnboardingPage> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
-            child: Column(
-              children: [
-                Row(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1180),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+                child: Column(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryDark.withValues(
-                              alpha: 0.10,
-                            ),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
+                    Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryDark.withValues(
+                                  alpha: 0.10,
+                                ),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.drive_eta_rounded,
-                        color: AppColors.primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'SafeDriver',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 17,
-                          fontWeight: AppFontWeights.extraBold,
+                          child: const Icon(
+                            Icons.drive_eta_rounded,
+                            color: AppColors.primaryColor,
+                          ),
                         ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'SafeDriver',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 17,
+                              fontWeight: AppFontWeights.extraBold,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _finish,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                          ),
+                          child: Text(l10n.t('skip')),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _controller,
+                        onPageChanged: (value) =>
+                            setState(() => _index = value),
+                        itemCount: _pages.length,
+                        itemBuilder: (_, i) => _OnboardSlide(data: _pages[i]),
                       ),
                     ),
-                    TextButton(
-                      onPressed: _finish,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
-                      ),
-                      child: Text(l10n.t('skip')),
+                    _OnboardFooter(
+                      activeIndex: _index,
+                      pageCount: _pages.length,
+                      accent: _pages[_index].accent,
+                      l10n: l10n,
+                      onNext: _index == _pages.length - 1
+                          ? _finish
+                          : () => _controller.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOutCubic,
+                            ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: PageView.builder(
-                    controller: _controller,
-                    onPageChanged: (value) => setState(() => _index = value),
-                    itemCount: _pages.length,
-                    itemBuilder: (_, i) => _OnboardSlide(data: _pages[i]),
-                  ),
-                ),
-                _OnboardFooter(
-                  activeIndex: _index,
-                  pageCount: _pages.length,
-                  accent: _pages[_index].accent,
-                  l10n: l10n,
-                  onNext: _index == _pages.length - 1
-                      ? _finish
-                      : () => _controller.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutCubic,
-                        ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -267,8 +273,33 @@ class _OnboardSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
         final compact = constraints.maxHeight < 610;
-        final imageHeight = compact ? 210.0 : 285.0;
+        final imageHeight = compact
+            ? 210.0
+            : wide
+            ? 320.0
+            : 285.0;
+
+        if (wide) {
+          return Center(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _IllustrationPanel(
+                    data: data,
+                    imageHeight: imageHeight,
+                    compact: compact,
+                  ),
+                ),
+                const SizedBox(width: 32),
+                Expanded(
+                  child: _CopyPanel(data: data, compact: compact),
+                ),
+              ],
+            ),
+          );
+        }
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),

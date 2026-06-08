@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/driver_models.dart';
@@ -343,9 +342,10 @@ class DriverDataService {
       mediaName = media.name;
       mediaType = media.mimeType ?? _guessContentType(media.path);
       mediaPath = 'driverComplaints/$driverId/${doc.id}/$mediaName';
+      final bytes = await media.readAsBytes();
       final upload = await _storage
           .ref(mediaPath)
-          .putFile(File(media.path), SettableMetadata(contentType: mediaType));
+          .putData(bytes, SettableMetadata(contentType: mediaType));
       mediaUrl = await upload.ref.getDownloadURL();
     }
 
