@@ -1298,6 +1298,9 @@ class _AlertDetailsDialog extends StatelessWidget {
                       child: Image.network(
                         alert.evidenceUrl,
                         fit: BoxFit.cover,
+                        webHtmlElementStrategy: kIsWeb
+                            ? WebHtmlElementStrategy.fallback
+                            : WebHtmlElementStrategy.never,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return const SizedBox(
