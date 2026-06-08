@@ -320,7 +320,10 @@ class _PassengerStyleMapScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final horizontal = wide ? 24.0 : 16.0;
+    final horizontal = wide ? 24.0 : 14.0;
+    final topGap = wide ? 12.0 : 10.0;
+    final mapGap = wide ? 16.0 : 10.0;
+    final endGap = wide ? 0.0 : 8.0;
     return Container(
       decoration: BoxDecoration(
         gradient: th.isDark
@@ -341,7 +344,7 @@ class _PassengerStyleMapScreen extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 0),
+          padding: EdgeInsets.fromLTRB(horizontal, topGap, horizontal, endGap),
           child: wide
               ? Row(
                   children: [
@@ -360,7 +363,7 @@ class _PassengerStyleMapScreen extends StatelessWidget {
                         onToggleHazards: onToggleHazards,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: mapGap),
                     Expanded(child: _mapCard()),
                   ],
                 )
@@ -378,7 +381,7 @@ class _PassengerStyleMapScreen extends StatelessWidget {
                       onNavigate: onNavigate,
                       onToggleHazards: onToggleHazards,
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: mapGap),
                     Expanded(child: _mapCard()),
                   ],
                 ),
@@ -467,9 +470,9 @@ class _TopControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _MapHeader(title: title, routeLabel: routeLabel, onBack: onBack),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         _SearchBox(controller: searchController, onSearch: onSearch),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -493,10 +496,7 @@ class _TopControls extends StatelessWidget {
             ),
           ],
         ),
-        if (bus != null) ...[
-          const SizedBox(height: 10),
-          _BusSummary(bus: bus!),
-        ],
+        if (bus != null) ...[const SizedBox(height: 9), _BusSummary(bus: bus!)],
       ],
     );
   }
@@ -607,7 +607,7 @@ class _SearchBox extends StatelessWidget {
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
-            vertical: 14,
+            vertical: 12,
           ),
         ),
       ),
@@ -640,7 +640,7 @@ class _PassengerActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          height: 56,
+          height: 52,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -764,7 +764,7 @@ class _BusSummary extends StatelessWidget {
         ? bus.locationAddress
         : bus.locationDepot;
     return Container(
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: th.isDark ? 0.08 : 0.16),
         borderRadius: BorderRadius.circular(14),
