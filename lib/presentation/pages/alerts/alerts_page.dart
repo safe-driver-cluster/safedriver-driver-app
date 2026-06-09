@@ -184,7 +184,7 @@ class _AlertsPageState extends State<AlertsPage> {
 
   List<String> _typesFor(List<DriverAlert> alerts) {
     final liveTypes = alerts
-        .map((alert) => alert.type.trim().toLowerCase())
+        .map((alert) => _typeFilterValue(alert.type))
         .where((type) => type.isNotEmpty)
         .toSet();
     final extraTypes = liveTypes.difference(_defaultAlertTypes.toSet()).toList()
@@ -196,7 +196,8 @@ class _AlertsPageState extends State<AlertsPage> {
   List<DriverAlert> _filteredAlerts(List<DriverAlert> alerts) {
     return alerts.where((alert) {
       final typeMatches =
-          _selectedType == 'all' || alert.type.toLowerCase() == _selectedType;
+          _selectedType == 'all' ||
+          _typeFilterValue(alert.type) == _selectedType;
       final dateMatches = _isWithinRange(alert.createdAt);
       return typeMatches && dateMatches;
     }).toList();
@@ -275,6 +276,16 @@ class _AlertsPageState extends State<AlertsPage> {
       _customDateRange = picked;
     });
   }
+}
+
+String _typeFilterValue(String type) {
+  final normalized = type.trim().toLowerCase();
+  if (normalized.contains('drowsy') ||
+      normalized.contains('drowsiness') ||
+      normalized.contains('yawn')) {
+    return 'sleep';
+  }
+  return normalized;
 }
 
 class _WebAlertsView extends StatelessWidget {
@@ -1124,7 +1135,7 @@ class _AlertCard extends StatelessWidget {
   }
 
   Color _colorFor(String type) {
-    final normalized = type.toLowerCase();
+    final normalized = _typeFilterValue(type);
     if (normalized.contains('smoking')) return AppColors.dangerColor;
     if (normalized.contains('phone')) return AppColors.warningColor;
     if (normalized.contains('sleep')) return AppColors.purpleColor;
@@ -1132,7 +1143,7 @@ class _AlertCard extends StatelessWidget {
   }
 
   IconData _iconFor(String type) {
-    final normalized = type.toLowerCase();
+    final normalized = _typeFilterValue(type);
     if (normalized.contains('smoking')) return Icons.smoke_free_rounded;
     if (normalized.contains('phone')) return Icons.phone_android_rounded;
     if (normalized.contains('sleep')) return Icons.bedtime_rounded;
@@ -1365,7 +1376,6 @@ String _complaintMessageFor(DriverAlert alert) {
     if (alert.status.isNotEmpty) 'Status: ${alert.status}',
     if (alert.priority.isNotEmpty) 'Priority: ${alert.priority}',
     'Time: ${_formatDetailDate(alert.createdAt)}',
-    if (alert.evidenceUrl.isNotEmpty) 'Evidence: ${alert.evidenceUrl}',
   ];
   return lines.join('\n');
 }
@@ -1425,17 +1435,22 @@ List<MapEntry<String, String>> _detailRows(DriverAlert alert) {
 
   final hiddenEvidenceKeys = {
     'evidence',
-    'evidenceUrl',
-    'imageUrl',
-    'photoUrl',
-    'mediaUrl',
-    'attachmentUrl',
+    'evidencepath',
+    'evidenceurl',
+    'imagepath',
+    'imageurl',
+    'photopath',
+    'photourl',
+    'mediapath',
+    'mediaurl',
+    'attachmentpath',
+    'attachmenturl',
   };
   final existingLabels = rows.map((row) => row.key.toLowerCase()).toSet();
   final rawEntries = alert.raw.entries.toList()
     ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
   for (final entry in rawEntries) {
-    if (hiddenEvidenceKeys.contains(entry.key)) continue;
+    if (hiddenEvidenceKeys.contains(_normalizeDetailKey(entry.key))) continue;
     final label = _humanize(entry.key);
     if (existingLabels.contains(label.toLowerCase())) continue;
     final value = _formatDetailValue(entry.value);
@@ -1444,6 +1459,10 @@ List<MapEntry<String, String>> _detailRows(DriverAlert alert) {
     existingLabels.add(label.toLowerCase());
   }
   return rows;
+}
+
+String _normalizeDetailKey(String value) {
+  return value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
 }
 
 String _formatDetailValue(dynamic value) {
@@ -1487,7 +1506,7 @@ String _humanize(String value) {
 }
 
 Color _detailColorFor(String type) {
-  final normalized = type.toLowerCase();
+  final normalized = _typeFilterValue(type);
   if (normalized.contains('smoking')) return AppColors.dangerColor;
   if (normalized.contains('phone')) return AppColors.warningColor;
   if (normalized.contains('sleep')) return AppColors.purpleColor;
@@ -1495,7 +1514,7 @@ Color _detailColorFor(String type) {
 }
 
 IconData _detailIconFor(String type) {
-  final normalized = type.toLowerCase();
+  final normalized = _typeFilterValue(type);
   if (normalized.contains('smoking')) return Icons.smoke_free_rounded;
   if (normalized.contains('phone')) return Icons.phone_android_rounded;
   if (normalized.contains('sleep')) return Icons.bedtime_rounded;
