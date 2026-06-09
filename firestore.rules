@@ -20,6 +20,10 @@ service cloud.firestore {
              'isVerified' in request.resource.data &&
              'createdAt' in request.resource.data;
     }
+
+    function isValidDriverLanguage(language) {
+      return language in ['ENGLISH', 'SINHALA', 'TAMIL'];
+    }
     
     // Users collection - users can only access their own data
     match /users/{userId} {
@@ -54,7 +58,9 @@ service cloud.firestore {
                       request.auth.token.role == 'driver' &&
                       request.auth.token.driverId == driverId &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['profileImageUrl', 'updatedAt']);
+                        .hasOnly(['profileImageUrl', 'language', 'updatedAt']) &&
+                      (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['language']) ||
+                       isValidDriverLanguage(request.resource.data.language));
       allow create, delete: if false;
     }
 

@@ -26,8 +26,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setLocale(Locale locale) async {
     _locale = locale;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('locale', locale.languageCode);
+    await _saveLocale(locale);
     notifyListeners();
   }
 
@@ -62,6 +61,11 @@ class AppController extends ChangeNotifier {
       if (mode.name == value) return mode;
     }
     return null;
+  }
+
+  Future<void> _saveLocale(Locale locale) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('locale', locale.languageCode);
   }
 }
 

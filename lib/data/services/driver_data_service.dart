@@ -371,6 +371,13 @@ class DriverDataService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> updateDriverLanguage(String driverId, String language) {
+    return _firestore.collection('drivers').doc(driverId).set({
+      'language': language,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> submitSupportRequest({
     required String driverId,
     required String driverName,
