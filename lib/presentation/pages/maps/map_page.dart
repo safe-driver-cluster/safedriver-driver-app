@@ -14,6 +14,8 @@ import '../../../data/models/driver_models.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
+import 'web_map_embed_stub.dart'
+    if (dart.library.html) 'web_map_embed_web.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -164,7 +166,7 @@ class _MapPageState extends State<MapPage> {
                     ? l10n.t('routeGuidance')
                     : driver.currentRoute,
                 searchController: _searchController,
-                map: _buildMap(hazards),
+                map: _buildMapSurface(hazards),
                 bus: _assignedBus,
                 hazards: hazards,
                 hazardsVisible: _hazardsVisible,
@@ -193,6 +195,21 @@ class _MapPageState extends State<MapPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildMapSurface(List<DriverHazardZone> hazards) {
+    if (!kIsWeb) return _buildMap(hazards);
+    return _buildWebFallbackMap();
+  }
+
+  Widget _buildWebFallbackMap() {
+    final latitude = _assignedBus?.latitude ?? _fallbackCenter.latitude;
+    final longitude = _assignedBus?.longitude ?? _fallbackCenter.longitude;
+    return buildWebMapEmbed(
+      latitude: latitude,
+      longitude: longitude,
+      markerLabel: _assignedBus?.busNumber ?? 'SafeDriver map',
     );
   }
 

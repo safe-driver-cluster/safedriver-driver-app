@@ -2,9 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 DateTime? readDate(dynamic value) {
   if (value == null) return null;
-  if (value is Timestamp) return value.toDate();
-  if (value is DateTime) return value;
-  if (value is String) return DateTime.tryParse(value);
+  if (value is Timestamp) return value.toDate().toLocal();
+  if (value is DateTime) return value.toLocal();
+  if (value is String) return DateTime.tryParse(value)?.toLocal();
   return null;
 }
 
@@ -42,6 +42,7 @@ class DriverProfile {
     required this.lastName,
     required this.phoneNumber,
     required this.email,
+    required this.language,
     required this.profileImageUrl,
     required this.licenseNumber,
     required this.licenseType,
@@ -63,6 +64,7 @@ class DriverProfile {
   final String lastName;
   final String phoneNumber;
   final String email;
+  final String language;
   final String? profileImageUrl;
   final String licenseNumber;
   final String licenseType;
@@ -91,6 +93,38 @@ class DriverProfile {
         normalized == 'onduty' ||
         normalized == 'on_duty' ||
         normalized == 'on duty';
+  }
+
+  DriverProfile copyWith({
+    String? language,
+    String? profileImageUrl,
+    Map<String, dynamic>? raw,
+  }) {
+    final nextRaw = Map<String, dynamic>.from(raw ?? this.raw);
+    if (language != null) nextRaw['language'] = language;
+    if (profileImageUrl != null) nextRaw['profileImageUrl'] = profileImageUrl;
+    return DriverProfile(
+      id: id,
+      employeeId: employeeId,
+      firstName: firstName,
+      lastName: lastName,
+      phoneNumber: phoneNumber,
+      email: email,
+      language: language ?? this.language,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      licenseNumber: licenseNumber,
+      licenseType: licenseType,
+      licenseExpiry: licenseExpiry,
+      status: status,
+      currentBusId: currentBusId,
+      currentRoute: currentRoute,
+      safetyScore: safetyScore,
+      alertnessLevel: alertnessLevel,
+      rating: rating,
+      totalRatings: totalRatings,
+      isActive: isActive,
+      raw: nextRaw,
+    );
   }
 
   factory DriverProfile.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -122,6 +156,7 @@ class DriverProfile {
         'contactNumber',
       ]),
       email: readString(data, ['email']),
+      language: _normalizeDriverLanguage(readString(data, ['language'])),
       profileImageUrl:
           readString(data, ['profileImageUrl', 'photoUrl', 'avatarUrl']).isEmpty
           ? null
@@ -158,6 +193,16 @@ class DriverProfile {
       isActive: data['isActive'] != false,
       raw: data,
     );
+  }
+
+  static String _normalizeDriverLanguage(String value) {
+    final normalized = value.trim().toUpperCase();
+    return switch (normalized) {
+      'SI' || 'SINHALA' => 'SINHALA',
+      'TA' || 'TAMIL' => 'TAMIL',
+      'EN' || 'ENGLISH' => 'ENGLISH',
+      _ => 'ENGLISH',
+    };
   }
 }
 
