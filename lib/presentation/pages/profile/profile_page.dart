@@ -771,20 +771,42 @@ class _LanguageDropdownRow extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
-              DropdownButton<_DriverLanguageOption>(
-                value: value,
-                underline: const SizedBox.shrink(),
-                items: _DriverLanguageOption.values
-                    .map(
-                      (option) => DropdownMenuItem(
-                        value: option,
-                        child: Text(option.label),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (option) {
-                  if (option != null) onChanged(option);
-                },
+              SizedBox(
+                width: 154,
+                child: DropdownButton<_DriverLanguageOption>(
+                  value: value,
+                  isExpanded: true,
+                  alignment: AlignmentDirectional.centerStart,
+                  underline: const SizedBox.shrink(),
+                  selectedItemBuilder: (context) => _DriverLanguageOption.values
+                      .map(
+                        (option) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            option.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: th.textPrimary,
+                              fontWeight: AppFontWeights.bold,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  items: _DriverLanguageOption.values
+                      .map(
+                        (option) => DropdownMenuItem(
+                          value: option,
+                          child: Text(option.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (option) {
+                    if (option != null) onChanged(option);
+                  },
+                ),
               ),
           ],
         ),
@@ -855,10 +877,11 @@ class _InfoRow extends StatelessWidget {
                 ),
               ),
             ),
-            Flexible(
+            SizedBox(
+              width: 154,
               child: Text(
                 value.isEmpty ? '-' : value,
-                textAlign: TextAlign.end,
+                textAlign: TextAlign.start,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.bodyMedium.copyWith(
