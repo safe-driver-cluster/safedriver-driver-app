@@ -30,7 +30,8 @@ class _BusesPageState extends State<BusesPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final driver = AppScope.of(context).driver;
-    if (driver != null && (_busStream == null || _streamDriverId != driver.id)) {
+    if (driver != null &&
+        (_busStream == null || _streamDriverId != driver.id)) {
       _setBusStream(driver);
     }
   }
@@ -147,54 +148,6 @@ class _BusesPageState extends State<BusesPage> {
                         ),
                         _StatusPill(label: bus.status),
                       ],
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: th.tintBackground,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.confirmation_number_rounded,
-                            size: 16,
-                            color: AppColors.primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              bus.registration,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.primaryDark,
-                                fontWeight: AppFontWeights.bold,
-                              ),
-                            ),
-                          ),
-                          if (bus.safetyScore > 0) ...[
-                            const Icon(
-                              Icons.shield_rounded,
-                              size: 16,
-                              color: AppColors.secondaryColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              bus.safetyScore.toStringAsFixed(0),
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.secondaryColor,
-                                fontWeight: AppFontWeights.bold,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(

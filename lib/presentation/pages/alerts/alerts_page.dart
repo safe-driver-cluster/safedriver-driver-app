@@ -680,6 +680,7 @@ class _WebAlertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _detailColorFor(alert.type);
     final th = ThemeHelper.of(context);
+    final showDescription = _shouldShowAlertDescription(alert);
     return GestureDetector(
       onTap: () => _showAlertDetails(context, alert),
       behavior: HitTestBehavior.opaque,
@@ -735,17 +736,19 @@ class _WebAlertCard extends StatelessWidget {
                 _Pill(label: alert.priority, color: color),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              alert.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: th.textPrimary,
-                height: 1.35,
+            if (showDescription) ...[
+              const SizedBox(height: 12),
+              Text(
+                alert.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: th.textPrimary,
+                  height: 1.35,
+                ),
               ),
-            ),
-            const Spacer(),
+            ],
+            if (showDescription) const Spacer() else const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1057,6 +1060,7 @@ class _AlertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _colorFor(alert.type);
     final th = ThemeHelper.of(context);
+    final showDescription = _shouldShowAlertDescription(alert);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showAlertDetails(context, alert),
@@ -1102,13 +1106,15 @@ class _AlertCard extends StatelessWidget {
                 _Pill(label: alert.priority, color: color),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              alert.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
-            ),
+            if (showDescription) ...[
+              const SizedBox(height: 10),
+              Text(
+                alert.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMedium.copyWith(color: th.textPrimary),
+              ),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -1190,6 +1196,20 @@ void _showAlertDetails(BuildContext context, DriverAlert alert) {
   );
 }
 
+bool _shouldShowAlertDescription(DriverAlert alert) {
+  final description = alert.description.trim();
+  if (description.isEmpty) return false;
+  return _normalizeAlertText(description) != _normalizeAlertText(alert.title);
+}
+
+String _normalizeAlertText(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
+
 class _AlertDetailsDialog extends StatelessWidget {
   const _AlertDetailsDialog({required this.alert, required this.onReport});
 
@@ -1202,6 +1222,7 @@ class _AlertDetailsDialog extends StatelessWidget {
     final th = ThemeHelper.of(context);
     final rows = _detailRows(alert);
     final size = MediaQuery.sizeOf(context);
+    final showDescription = _shouldShowAlertDescription(alert);
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
       backgroundColor: Colors.transparent,
@@ -1260,14 +1281,16 @@ class _AlertDetailsDialog extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  alert.description,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: th.textPrimary,
-                    height: 1.35,
+                if (showDescription) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    alert.description,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: th.textPrimary,
+                      height: 1.35,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 18),
                 Wrap(
                   spacing: 8,
