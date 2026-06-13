@@ -318,11 +318,14 @@ class DriverAlert {
   final Map<String, dynamic> raw;
 
   factory DriverAlert.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+    return DriverAlert.fromMap(doc.id, doc.data() ?? {});
+  }
+
+  factory DriverAlert.fromMap(String id, Map<String, dynamic> data) {
     final type = readString(data, ['type'], 'safety');
     final message = readString(data, ['message', 'description']);
     return DriverAlert(
-      id: doc.id,
+      id: id,
       title: readString(data, ['title'], message.isEmpty ? type : message),
       description: readString(data, [
         'description',
