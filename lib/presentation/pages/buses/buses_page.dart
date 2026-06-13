@@ -11,24 +11,66 @@ import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
 import '../../widgets/common/professional_widgets.dart';
 
-class BusesPage extends StatelessWidget {
+class BusesPage extends StatefulWidget {
   const BusesPage({super.key, this.showAppBar = true});
 
   final bool showAppBar;
 
   @override
+  State<BusesPage> createState() => _BusesPageState();
+}
+
+class _BusesPageState extends State<BusesPage> {
+  final _vm = DriverDashboardViewModel();
+  Stream<List<DriverBus>>? _busStream;
+  String? _streamDriverId;
+  int _refreshKey = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final driver = AppScope.of(context).driver;
+    if (driver != null && (_busStream == null || _streamDriverId != driver.id)) {
+      _setBusStream(driver);
+    }
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  void _setBusStream(DriverProfile driver) {
+    _streamDriverId = driver.id;
+    _busStream = _vm.buses(driver);
+  }
+
+  Future<void> _refresh() async {
+    final driver = AppScope.of(context).driver!;
+    setState(() {
+      _refreshKey++;
+      _setBusStream(driver);
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final driver = AppScope.of(context).driver!;
-    final vm = DriverDashboardViewModel();
     final body = StreamBuilder(
-      stream: vm.buses(driver),
+      key: ValueKey(_refreshKey),
+      stream: _busStream ?? _vm.buses(driver),
       builder: (context, snapshot) {
         final data = snapshot.data ?? [];
         if (snapshot.hasError) {
-          return const EmptyState(
-            message: 'Could not load buses.',
-            icon: Icons.error_outline_rounded,
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: const ScrollableEmptyState(
+              message: 'Could not load buses.',
+              icon: Icons.error_outline_rounded,
+            ),
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting ||
@@ -36,168 +78,180 @@ class BusesPage extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (data.isEmpty) {
-          return EmptyState(
-            message: l10n.t('noAssignedBuses'),
-            icon: Icons.directions_bus_filled_rounded,
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ScrollableEmptyState(
+              message: l10n.t('noAssignedBuses'),
+              icon: Icons.directions_bus_filled_rounded,
+            ),
           );
         }
         if (kIsWeb && MediaQuery.sizeOf(context).width >= 900) {
-          return _WebBusesView(
-            buses: data,
-            driver: driver,
-            routeLabel: _routeLabel,
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: _WebBusesView(
+              buses: data,
+              driver: driver,
+              routeLabel: _routeLabel,
+            ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
-          itemCount: data.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, i) {
-            final bus = data[i];
-            final th = ThemeHelper.of(context);
-            return SoftCard(
-              padding: const EdgeInsets.all(13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        height: 44,
-                        width: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
+            itemCount: data.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final bus = data[i];
+              final th = ThemeHelper.of(context);
+              return SoftCard(
+                padding: const EdgeInsets.all(13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          height: 44,
+                          width: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor.withValues(
+                              alpha: 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.directions_bus_rounded,
+                            color: AppColors.primaryColor,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.directions_bus_rounded,
-                          color: AppColors.primaryColor,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(bus.busNumber, style: AppTextStyles.title),
+                              const SizedBox(height: 2),
+                              Text(
+                                _routeLabel(bus, driver.currentRoute),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: th.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        _StatusPill(label: bus.status),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(bus.busNumber, style: AppTextStyles.title),
-                            const SizedBox(height: 2),
-                            Text(
-                              _routeLabel(bus, driver.currentRoute),
+                      decoration: BoxDecoration(
+                        color: th.tintBackground,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.confirmation_number_rounded,
+                            size: 16,
+                            color: AppColors.primaryColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              bus.registration,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.caption.copyWith(
-                                color: th.textSecondary,
+                                color: AppColors.primaryDark,
+                                fontWeight: AppFontWeights.bold,
+                              ),
+                            ),
+                          ),
+                          if (bus.safetyScore > 0) ...[
+                            const Icon(
+                              Icons.shield_rounded,
+                              size: 16,
+                              color: AppColors.secondaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              bus.safetyScore.toStringAsFixed(0),
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.secondaryColor,
+                                fontWeight: AppFontWeights.bold,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      _StatusPill(label: bus.status),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: th.tintBackground,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.confirmation_number_rounded,
-                          size: 16,
-                          color: AppColors.primaryColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            bus.registration,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.primaryDark,
-                              fontWeight: AppFontWeights.bold,
-                            ),
-                          ),
-                        ),
-                        if (bus.safetyScore > 0) ...[
-                          const Icon(
-                            Icons.shield_rounded,
-                            size: 16,
-                            color: AppColors.secondaryColor,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            bus.safetyScore.toStringAsFixed(0),
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.secondaryColor,
-                              fontWeight: AppFontWeights.bold,
-                            ),
-                          ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _DetailChip(
+                          icon: Icons.directions_bus_filled_rounded,
+                          label: 'Model',
+                          value: bus.model,
+                        ),
+                        _DetailChip(
+                          icon: Icons.alt_route_rounded,
+                          label: 'Route ID',
+                          value: bus.routeId,
+                        ),
+                        _DetailChip(
+                          icon: Icons.business_rounded,
+                          label: 'Depot',
+                          value: bus.locationDepot,
+                        ),
+                        _DetailChip(
+                          icon: Icons.calendar_month_rounded,
+                          label: 'Year',
+                          value: bus.year == 0 ? '' : bus.year.toString(),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _DetailChip(
-                        icon: Icons.directions_bus_filled_rounded,
-                        label: 'Model',
-                        value: bus.model,
-                      ),
-                      _DetailChip(
-                        icon: Icons.alt_route_rounded,
-                        label: 'Route ID',
-                        value: bus.routeId,
-                      ),
-                      _DetailChip(
-                        icon: Icons.business_rounded,
-                        label: 'Depot',
-                        value: bus.locationDepot,
-                      ),
-                      _DetailChip(
-                        icon: Icons.calendar_month_rounded,
-                        label: 'Year',
-                        value: bus.year == 0 ? '' : bus.year.toString(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _DetailRow(
-                    icon: Icons.person_rounded,
-                    label: 'Assigned driver',
-                    value: bus.driverName.isEmpty
-                        ? driver.fullName
-                        : bus.driverName,
-                  ),
-                  _DetailRow(
-                    icon: Icons.location_on_rounded,
-                    label: 'Current location',
-                    value: bus.locationAddress.isEmpty
-                        ? bus.locationDepot
-                        : bus.locationAddress,
-                  ),
-                  _DetailRow(
-                    icon: Icons.sensors_rounded,
-                    label: 'Device ID',
-                    value: bus.deviceId,
-                  ),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 10),
+                    _DetailRow(
+                      icon: Icons.person_rounded,
+                      label: 'Assigned driver',
+                      value: bus.driverName.isEmpty
+                          ? driver.fullName
+                          : bus.driverName,
+                    ),
+                    _DetailRow(
+                      icon: Icons.location_on_rounded,
+                      label: 'Current location',
+                      value: bus.locationAddress.isEmpty
+                          ? bus.locationDepot
+                          : bus.locationAddress,
+                    ),
+                    _DetailRow(
+                      icon: Icons.sensors_rounded,
+                      label: 'Device ID',
+                      value: bus.deviceId,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
-    if (!showAppBar) return body;
+    if (!widget.showAppBar) return body;
     return DriverPageShell(
       title: l10n.t('myBuses'),
       selectedNavIndex: 1,
@@ -247,6 +301,7 @@ class _WebBusesView extends StatelessWidget {
               .toStringAsFixed(0);
 
     return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(28, 24, 28, 18),

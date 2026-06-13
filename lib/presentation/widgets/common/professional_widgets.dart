@@ -112,3 +112,27 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+
+class ScrollableEmptyState extends StatelessWidget {
+  const ScrollableEmptyState({
+    super.key,
+    required this.message,
+    this.icon = Icons.inbox_rounded,
+  });
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.62,
+          child: EmptyState(message: message, icon: icon),
+        ),
+      ],
+    );
+  }
+}
