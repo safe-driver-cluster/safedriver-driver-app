@@ -24,6 +24,14 @@ service cloud.firestore {
     function isValidDriverLanguage(language) {
       return language in ['ENGLISH', 'SINHALA', 'TAMIL'];
     }
+
+    function isDriverAlertOwner(data) {
+      return request.auth.token.role == 'driver' &&
+             (request.auth.token.driverId == data.driverId ||
+              request.auth.token.driverId == data.driver ||
+              request.auth.token.employeeId == data.driverId ||
+              request.auth.token.employeeId == data.driver);
+    }
     
     // Users collection - users can only access their own data
     match /users/{userId} {
@@ -74,23 +82,20 @@ service cloud.firestore {
 
     match /alerts/{alertId} {
       allow read: if isAuthenticated() &&
-                    request.auth.token.role == 'driver' &&
-                    request.auth.token.driverId == resource.data.driverId;
+                    isDriverAlertOwner(resource.data);
       allow write: if false;
     }
 
     match /alerts/{deviceId}/{date}/{alertId} {
       allow read: if isAuthenticated() &&
-                    request.auth.token.role == 'driver' &&
-                    request.auth.token.driverId == resource.data.driver;
+                    isDriverAlertOwner(resource.data);
       allow write: if false;
     }
 
     // Date-named alert subcollections are queried with collectionGroup().
     match /{path=**}/{date}/{alertId} {
       allow read: if isAuthenticated() &&
-                    request.auth.token.role == 'driver' &&
-                    request.auth.token.driverId == resource.data.driver;
+                    isDriverAlertOwner(resource.data);
     }
 
     match /driverComplaints/{complaintId} {

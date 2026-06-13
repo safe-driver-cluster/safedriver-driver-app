@@ -177,6 +177,69 @@ function publicDriverProfile(driver) {
     };
 }
 
+function alertDateKeys(days) {
+    const keys = [];
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    for (let index = 0; index < days; index += 1) {
+        const date = new Date(tomorrow);
+        date.setDate(tomorrow.getDate() - index);
+        keys.push(date.toISOString().slice(0, 10));
+    }
+
+    return keys;
+}
+
+function serializeFirestoreValue(value) {
+    if (!value) {
+        return value;
+    }
+
+    if (typeof value.toDate === 'function') {
+        return value.toDate().toISOString();
+    }
+
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(serializeFirestoreValue);
+    }
+
+    if (typeof value === 'object') {
+        const serialized = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+            serialized[key] = serializeFirestoreValue(nestedValue);
+        }
+        return serialized;
+    }
+
+    return value;
+}
+
+function isAlertForDriver(data, driverIds) {
+    const alertDriver = String(data.driver || data.driverId || data.employeeId || '').trim();
+    return alertDriver && driverIds.has(alertDriver);
+}
+
+async function runAlertQueryTasks(tasks, concurrency) {
+    const snapshots = [];
+    let nextIndex = 0;
+
+    async function worker() {
+        while (nextIndex < tasks.length) {
+            const currentIndex = nextIndex;
+            nextIndex += 1;
+            snapshots.push(await tasks[currentIndex]());
+        }
+    }
+
+    const workerCount = Math.min(concurrency, tasks.length);
+    await Promise.all(Array.from({ length: workerCount }, worker));
+    return snapshots;
+}
+
 async function sendSMS(phoneNumber, message) {
     try {
         if (!config.textlk.apiToken) {
@@ -663,9 +726,11 @@ exports.driverVerifyOTP = functions
             }
 
             const uid = driverAuthUid(driver.id);
+            const driverProfile = publicDriverProfile(driver);
             const customToken = await auth.createCustomToken(uid, {
                 role: 'driver',
                 driverId: driver.id,
+                employeeId: driverProfile.employeeId,
                 phoneNumber: formattedPhone,
             });
 
@@ -688,7 +753,7 @@ exports.driverVerifyOTP = functions
                 driverId: driver.id,
                 uid,
                 phoneNumber: formattedPhone,
-                driver: publicDriverProfile(driver),
+                driver: driverProfile,
             };
         } catch (error) {
             console.error('driverVerifyOTP error:', error);
@@ -700,6 +765,112 @@ exports.driverVerifyOTP = functions
             throw new functions.https.HttpsError(
                 'internal',
                 'An unexpected error occurred during driver verification'
+            );
+        }
+    });
+
+// Cloud Function: Return alerts for the authenticated driver without requiring bus/source IDs.
+exports.driverAlerts = functions
+    .region('asia-south1')
+    .runWith({
+        timeoutSeconds: 300,
+        memory: '512MB',
+    })
+    .https.onCall(async (data, context) => {
+        if (!context.auth || context.auth.token.role !== 'driver') {
+            throw new functions.https.HttpsError(
+                'unauthenticated',
+                'Driver authentication is required'
+            );
+        }
+
+        const driverIds = new Set([
+            context.auth.token.driverId,
+            context.auth.token.employeeId,
+        ].filter(Boolean).map((value) => String(value).trim()).filter(Boolean));
+
+        if (driverIds.size === 0) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'Driver ID is missing from authentication token'
+            );
+        }
+
+        const days = Math.max(1, Math.min(parseInt(data?.days, 10) || 10, 32));
+        const limit = Math.max(1, Math.min(parseInt(data?.limit, 10) || 250, 500));
+        const dateKeys = alertDateKeys(days);
+        const alertsByPath = new Map();
+
+        try {
+            const flatQueries = [];
+            for (const driverId of driverIds) {
+                flatQueries.push(
+                    db.collection('alerts').where('driverId', '==', driverId).limit(limit).get(),
+                    db.collection('alerts').where('driver', '==', driverId).limit(limit).get()
+                );
+            }
+
+            const rootRefsPromise = db.collection('alerts').listDocuments();
+            const flatSnapshots = await Promise.all(flatQueries);
+
+            for (const snapshot of flatSnapshots) {
+                for (const doc of snapshot.docs) {
+                    const alert = doc.data();
+                    if (isAlertForDriver(alert, driverIds)) {
+                        alertsByPath.set(doc.ref.path, {
+                            id: doc.id,
+                            path: doc.ref.path,
+                            ...serializeFirestoreValue(alert),
+                        });
+                    }
+                }
+            }
+
+            const rootRefs = await rootRefsPromise;
+            const nestedQueryTasks = [];
+            for (const rootRef of rootRefs) {
+                for (const dateKey of dateKeys) {
+                    const dateCollection = rootRef.collection(dateKey);
+                    for (const driverId of driverIds) {
+                        nestedQueryTasks.push(
+                            () => dateCollection.where('driver', '==', driverId).limit(limit).get(),
+                            () => dateCollection.where('driverId', '==', driverId).limit(limit).get()
+                        );
+                    }
+                }
+            }
+
+            const nestedSnapshots = await runAlertQueryTasks(nestedQueryTasks, 25);
+            for (const snapshot of nestedSnapshots) {
+                for (const doc of snapshot.docs) {
+                    const alert = doc.data();
+                    if (isAlertForDriver(alert, driverIds)) {
+                        alertsByPath.set(doc.ref.path, {
+                            id: doc.id,
+                            path: doc.ref.path,
+                            ...serializeFirestoreValue(alert),
+                        });
+                    }
+                }
+            }
+
+            const alerts = [...alertsByPath.values()].sort((a, b) => {
+                const aTime = new Date(a.createdAt || a.timestamp || a.time || 0).getTime();
+                const bTime = new Date(b.createdAt || b.timestamp || b.time || 0).getTime();
+                return bTime - aTime;
+            }).slice(0, limit);
+
+            console.log(`driverAlerts returned ${alerts.length} alerts for ${[...driverIds].join(',')} from ${rootRefs.length} roots and ${dateKeys.length} dates`);
+
+            return {
+                success: true,
+                alerts,
+            };
+        } catch (error) {
+            console.error('driverAlerts error:', error);
+            throw new functions.https.HttpsError(
+                'internal',
+                'Failed to load driver alerts'
             );
         }
     });
