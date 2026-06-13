@@ -42,6 +42,11 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final appTitle = l10n.t('appName');
+    final splashTitle = appTitle == 'SafeDriver - Driver App'
+        ? 'SafeDriver -\nDriver App'
+        : appTitle;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
@@ -68,17 +73,14 @@ class _SplashPageState extends State<SplashPage> {
                     ),
                   ),
                   const SizedBox(height: 58),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      l10n.t('appName'),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontSize: 44,
-                        fontWeight: AppFontWeights.extraBold,
-                        color: AppColors.primaryColor,
-                      ),
+                  Text(
+                    splashTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 44,
+                      height: 1.35,
+                      fontWeight: AppFontWeights.extraBold,
+                      color: AppColors.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 18),
