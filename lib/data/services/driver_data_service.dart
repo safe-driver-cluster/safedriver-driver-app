@@ -1,242 +1,83 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../models/driver_models.dart';
 
 class DriverDataService {
-  DriverDataService({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _firestore = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  DriverDataService({
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+    FirebaseStorage? storage,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1'),
+       _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final FirebaseStorage _storage;
 
   Stream<List<AttendanceRecord>> attendance(String driverId) {
-    return _query('attendance', driverId).snapshots().map(
-      (snap) => snap.docs.map(AttendanceRecord.fromDoc).toList(),
-    );
-  }
-
-  Stream<List<DriverAlert>> alerts(DriverProfile driver) {
-    final driverId = driver.id;
-    final controller = StreamController<List<DriverAlert>>();
-    final sourceKeys = <String, Set<String>>{};
-    final alertsByPath = <String, DriverAlert>{};
+    const lookbackDays = 14;
+    final dateIds = _recentDateIds(lookbackDays);
+    final recordsByDate = <String, List<AttendanceRecord>>{};
     final subscriptions =
         <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-    final pendingInitialSources = <String>{};
-    var started = false;
 
-    void emit() {
-      if (pendingInitialSources.isNotEmpty) {
-        debugPrint(
-          '[DriverDataService.alerts.emit] waitingFor=${pendingInitialSources.length}',
-        );
-        return;
-      }
-      final alerts = alertsByPath.values.toList()
-        ..sort((a, b) {
-          final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return bTime.compareTo(aTime);
-        });
-      debugPrint(
-        '[DriverDataService.alerts.emit] driver=$driverId total=${alerts.length}',
-      );
-      if (!controller.isClosed) controller.add(alerts);
-    }
-
-    void listenTo(String key, Query<Map<String, dynamic>> query) {
-      debugPrint('[DriverDataService.alerts.listen] source=$key');
-      pendingInitialSources.add(key);
-      final subscription = query.snapshots().listen(
-        (snap) {
-          debugPrint(
-            '[DriverDataService.alerts.snapshot] source=$key count=${snap.docs.length}',
-          );
-          for (final oldKey in sourceKeys[key] ?? const <String>{}) {
-            alertsByPath.remove(oldKey);
-          }
-          final nextKeys = <String>{};
-          for (final doc in snap.docs) {
-            final docKey = doc.reference.path;
-            debugPrint(
-              '[DriverDataService.alerts.doc] source=$key path=$docKey data=${doc.data()}',
-            );
-            final alert = DriverAlert.fromDoc(doc);
-            if (!_isAlertForLoggedDriver(alert, driverId)) {
-              debugPrint(
-                '[DriverDataService.alerts.skip] source=$key path=$docKey alertDriver=${alert.driverRef} loggedDriver=$driverId',
-              );
-              continue;
-            }
-            nextKeys.add(docKey);
-            alertsByPath[docKey] = alert;
-          }
-          sourceKeys[key] = nextKeys;
-          pendingInitialSources.remove(key);
-          emit();
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          debugPrint(
-            '[DriverDataService.alerts.error] source=$key error=$error',
-          );
-          pendingInitialSources.remove(key);
-          emit();
-        },
-      );
-      subscriptions.add(subscription);
-    }
-
-    Future<void> start() async {
-      if (started) return;
-      started = true;
-      debugPrint(
-        '[DriverDataService.alerts.start] loggedDriver=$driverId bus=${driver.currentBusId}',
-      );
-
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final dateKeys = List.generate(32, (index) {
-        final date = tomorrow.subtract(Duration(days: index));
-        return _dateKey(date);
-      });
-      final deviceIds = await _alertDeviceIdsFor(driver);
-      debugPrint(
-        '[DriverDataService.alerts.devices] driver=$driverId devices=$deviceIds dates=$dateKeys',
-      );
-
-      listenTo(
-        'flat_driverId:$driverId',
-        _firestore
-            .collection('alerts')
-            .where('driverId', isEqualTo: driverId)
-            .limit(50),
-      );
-      listenTo(
-        'flat_driver:$driverId',
-        _firestore
-            .collection('alerts')
-            .where('driver', isEqualTo: driverId)
-            .limit(50),
-      );
-
-      for (final deviceId in deviceIds) {
-        for (final dateKey in dateKeys) {
-          listenTo(
-            'device:$deviceId/$dateKey:driver',
-            _firestore
-                .collection('alerts')
-                .doc(deviceId)
-                .collection(dateKey)
-                .where('driver', isEqualTo: driverId)
-                .limit(50),
-          );
-          listenTo(
-            'device:$deviceId/$dateKey:driverId',
-            _firestore
-                .collection('alerts')
-                .doc(deviceId)
-                .collection(dateKey)
-                .where('driverId', isEqualTo: driverId)
-                .limit(50),
-          );
+    late final StreamController<List<AttendanceRecord>> controller;
+    controller = StreamController<List<AttendanceRecord>>(
+      onListen: () {
+        for (final dateId in dateIds) {
+          final subscription = _firestore
+              .collection('attendance')
+              .doc(driverId)
+              .collection(dateId)
+              .snapshots()
+              .listen((snap) {
+                recordsByDate[dateId] = snap.docs
+                    .map((doc) => AttendanceRecord.fromDoc(doc, dateId: dateId))
+                    .toList();
+                controller.add(_attendanceShifts(dateIds, recordsByDate));
+              }, onError: controller.addError);
+          subscriptions.add(subscription);
         }
-      }
-    }
-
-    controller.onListen = start;
-    controller.onCancel = () async {
-      debugPrint('[DriverDataService.alerts.cancel] driver=$driverId');
-      await Future.wait(
-        subscriptions.map((subscription) => subscription.cancel()),
-      );
-    };
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+      },
+    );
 
     return controller.stream;
   }
 
-  bool _isAlertForLoggedDriver(DriverAlert alert, String loggedDriverId) {
-    return alert.driverRef.trim() == loggedDriverId;
-  }
-
-  Future<Set<String>> _alertDeviceIdsFor(DriverProfile driver) async {
-    final ids = <String>{};
-    final rawDeviceId = readString(driver.raw, [
-      'deviceId',
-      'fingerprint_scanner_id',
-      'scannerId',
-    ]);
-    if (rawDeviceId.isNotEmpty) ids.add(rawDeviceId);
-
-    final bus = driver.currentBusId;
-    if (bus.isEmpty) return ids;
-
-    Future<void> addFromDoc(
-      DocumentSnapshot<Map<String, dynamic>> doc,
-      String source,
-    ) async {
-      if (!doc.exists) {
-        debugPrint('[DriverDataService.alerts.deviceLookup] $source missing');
-        return;
-      }
-      final deviceId = readString(doc.data() ?? {}, ['deviceId']);
-      debugPrint(
-        '[DriverDataService.alerts.deviceLookup] $source deviceId=$deviceId',
-      );
-      if (deviceId.isNotEmpty) ids.add(deviceId);
-    }
-
-    final byPlate = await _firestore
-        .collection('vehicles')
-        .where('busNumberPlate', isEqualTo: bus)
-        .limit(5)
-        .get();
+  Stream<List<DriverAlert>> alerts(DriverProfile driver) async* {
+    debugPrint('[DriverDataService.alerts.start] driver=${driver.id}');
+    final callable = _functions.httpsCallable(
+      'driverAlerts',
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 300)),
+    );
+    final result = await callable.call<Map<String, dynamic>>({
+      'days': 10,
+      'limit': 300,
+    });
+    final data = Map<String, dynamic>.from(result.data);
+    final rawAlerts = data['alerts'] as List? ?? const [];
+    final alerts = rawAlerts.map((raw) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      return DriverAlert.fromMap(map['id']?.toString() ?? '', map);
+    }).toList();
     debugPrint(
-      '[DriverDataService.alerts.deviceLookup] vehicles.busNumberPlate=$bus count=${byPlate.docs.length}',
+      '[DriverDataService.alerts.emit] driver=${driver.id} total=${alerts.length}',
     );
-    for (final doc in byPlate.docs) {
-      await addFromDoc(doc, doc.reference.path);
-    }
-
-    await addFromDoc(
-      await _firestore.collection('vehicles').doc(bus).get(),
-      'vehicles/$bus',
-    );
-
-    final byBusNumber = await _firestore
-        .collection('vehicles')
-        .where('busNumber', isEqualTo: bus)
-        .limit(5)
-        .get();
-    debugPrint(
-      '[DriverDataService.alerts.deviceLookup] vehicles.busNumber=$bus count=${byBusNumber.docs.length}',
-    );
-    for (final doc in byBusNumber.docs) {
-      await addFromDoc(doc, doc.reference.path);
-    }
-
-    final alertDeviceDocs = await _firestore
-        .collection('alerts')
-        .limit(50)
-        .get();
-    debugPrint(
-      '[DriverDataService.alerts.deviceLookup] alerts roots count=${alertDeviceDocs.docs.length}',
-    );
-    for (final doc in alertDeviceDocs.docs) {
-      ids.add(doc.id);
-    }
-
-    return ids;
-  }
-
-  String _dateKey(DateTime date) {
-    return '${date.year.toString().padLeft(4, '0')}-'
-        '${date.month.toString().padLeft(2, '0')}-'
-        '${date.day.toString().padLeft(2, '0')}';
+    yield alerts;
   }
 
   Stream<List<DriverFeedback>> feedback(String driverId) {
@@ -403,6 +244,38 @@ class DriverDataService {
         .collection(collection)
         .where('driverId', isEqualTo: driverId)
         .limit(50);
+  }
+
+  List<String> _recentDateIds(int days) {
+    final format = DateFormat('yyyy-MM-dd');
+    final today = DateTime.now();
+    return List.generate(days, (index) {
+      final date = DateTime(today.year, today.month, today.day - index);
+      return format.format(date);
+    });
+  }
+
+  List<AttendanceRecord> _attendanceShifts(
+    List<String> dateIds,
+    Map<String, List<AttendanceRecord>> recordsByDate,
+  ) {
+    final shifts = <AttendanceRecord>[];
+    for (final dateId in dateIds) {
+      final entries = [...recordsByDate[dateId] ?? const <AttendanceRecord>[]]
+        ..sort((a, b) {
+          final aTime = a.checkIn ?? a.checkOut ?? a.date;
+          final bTime = b.checkIn ?? b.checkOut ?? b.date;
+          return aTime.compareTo(bTime);
+        });
+
+      for (var i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        shifts.add(
+          entry.copyWith(id: '$dateId/${entry.id}', status: 'Shift ${i + 1}'),
+        );
+      }
+    }
+    return shifts.reversed.toList();
   }
 
   String _guessContentType(String path) {

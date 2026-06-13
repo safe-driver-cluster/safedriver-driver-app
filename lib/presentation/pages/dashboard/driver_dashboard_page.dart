@@ -253,7 +253,7 @@ class _ActionGrid extends StatelessWidget {
           children: [
             DashboardActionTile(
               title: l10n.t('myAttendance'),
-              subtitle: l10n.t('today'),
+              subtitle: 'View duty times',
               icon: Icons.event_available_rounded,
               color: AppColors.infoColor,
               onTap: () => Navigator.push(
@@ -263,23 +263,21 @@ class _ActionGrid extends StatelessWidget {
             ),
             DashboardActionTile(
               title: l10n.t('myBuses'),
-              subtitle: driver.currentBusId.isEmpty
-                  ? l10n.t('noAssignedBuses')
-                  : driver.currentBusId,
+              subtitle: 'View assigned buses',
               icon: Icons.directions_bus_rounded,
               color: AppColors.primaryColor,
               onTap: () => onOpen(1),
             ),
             DashboardActionTile(
               title: l10n.t('myAlerts'),
-              subtitle: 'Safety updates',
+              subtitle: 'View safety alerts',
               icon: Icons.notifications_rounded,
               color: AppColors.dangerColor,
               onTap: () => onOpen(2),
             ),
             DashboardActionTile(
               title: l10n.t('ratings'),
-              subtitle: '${driver.rating.toStringAsFixed(1)} average',
+              subtitle: 'View ratings',
               icon: Icons.star_rate_rounded,
               color: AppColors.warningColor,
               onTap: () => Navigator.push(
@@ -309,9 +307,7 @@ class _ActionGrid extends StatelessWidget {
             ),
             DashboardActionTile(
               title: l10n.t('map'),
-              subtitle: driver.currentRoute.isEmpty
-                  ? l10n.t('routeGuidance')
-                  : driver.currentRoute,
+              subtitle: 'Open route map',
               icon: Icons.map_rounded,
               color: AppColors.primaryDark,
               onTap: () => Navigator.push(
@@ -553,57 +549,6 @@ class _DriverOverviewCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: th.subtleBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: th.borderColor),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.directions_bus_rounded,
-                  color: AppColors.primaryColor,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        driver.currentBusId.isEmpty
-                            ? l10n.t('noAssignedBuses')
-                            : driver.currentBusId,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          fontWeight: AppFontWeights.extraBold,
-                          color: th.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        driver.currentRoute.isEmpty
-                            ? l10n.t('routeGuidance')
-                            : driver.currentRoute,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.caption.copyWith(
-                          color: th.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.keyboard_arrow_right_rounded,
-                  color: th.textSecondary,
-                ),
-              ],
-            ),
           ),
         ],
       ),

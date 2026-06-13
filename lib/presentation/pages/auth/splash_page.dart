@@ -42,80 +42,93 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final appTitle = l10n.t('appName');
+    final splashTitle = appTitle == 'SafeDriver - Driver App'
+        ? 'SafeDriver -\nDriver App'
+        : appTitle;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         body: Container(
           width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.primaryColor,
-                AppColors.primaryDark,
-                Color(0xFF1E3A8A),
-              ],
-            ),
-          ),
+          color: const Color(0xFFF5F6FA),
           child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
-                Container(
-                  width: 132,
-                  height: 132,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(34),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 30,
-                      ),
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
+              child: Column(
+                children: [
+                  const Spacer(flex: 4),
+                  Container(
+                    width: 172,
+                    height: 172,
+                    padding: const EdgeInsets.all(34),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: Image.asset('assets/images/logo.png'),
+                  const SizedBox(height: 58),
+                  Text(
+                    splashTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 44,
+                      height: 1.35,
+                      fontWeight: AppFontWeights.extraBold,
+                      color: AppColors.primaryColor,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 34),
-                Text(
-                  l10n.t('appName'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: AppFontWeights.extraBold,
-                    color: Colors.white,
+                  const SizedBox(height: 18),
+                  Text(
+                    l10n.t('tagline'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 20,
+                      fontWeight: AppFontWeights.semiBold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  l10n.t('tagline'),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 16,
+                  const Spacer(flex: 3),
+                  const SizedBox(
+                    height: 26,
+                    width: 26,
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryColor,
+                      strokeWidth: 3,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Loading...',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 18,
+                      fontWeight: AppFontWeights.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  '${l10n.t('version')} 1.0.0',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
-                ),
-                const SizedBox(height: 28),
-              ],
+                  const Spacer(flex: 2),
+                  Text(
+                    '${l10n.t('version')} 1.0.0',
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.58),
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Powered by SafeDriver Technologies',
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.32),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

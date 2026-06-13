@@ -419,8 +419,8 @@ class _ComplaintMediaPreview extends StatelessWidget {
           errorBuilder: (context, error, stackTrace) {
             return Padding(
               padding: const EdgeInsets.all(14),
-              child: SelectableText(
-                url,
+              child: Text(
+                'Attached media could not be loaded.',
                 style: AppTextStyles.caption.copyWith(
                   color: th.textSecondary,
                   height: 1.3,
@@ -486,7 +486,6 @@ List<MapEntry<String, String>> _complaintDetailRows(
     ),
     MapEntry('Submitted', _formatDetailTime(record.createdAt)),
     MapEntry('Last updated', _formatDetailTime(record.updatedAt)),
-    if (record.mediaUrl.isNotEmpty) MapEntry('Media URL', record.mediaUrl),
     MapEntry('Complaint ID', record.id),
   ];
 }

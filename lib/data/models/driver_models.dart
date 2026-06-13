@@ -318,11 +318,14 @@ class DriverAlert {
   final Map<String, dynamic> raw;
 
   factory DriverAlert.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+    return DriverAlert.fromMap(doc.id, doc.data() ?? {});
+  }
+
+  factory DriverAlert.fromMap(String id, Map<String, dynamic> data) {
     final type = readString(data, ['type'], 'safety');
     final message = readString(data, ['message', 'description']);
     return DriverAlert(
-      id: doc.id,
+      id: id,
       title: readString(data, ['title'], message.isEmpty ? type : message),
       description: readString(data, [
         'description',
@@ -541,6 +544,7 @@ class AttendanceRecord {
   AttendanceRecord({
     required this.id,
     required this.status,
+    required this.date,
     required this.checkIn,
     required this.checkOut,
     required this.busId,
@@ -549,20 +553,69 @@ class AttendanceRecord {
 
   final String id;
   final String status;
+  final DateTime date;
   final DateTime? checkIn;
   final DateTime? checkOut;
   final String busId;
   final String notes;
 
-  factory AttendanceRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  Duration get workedDuration {
+    if (checkIn == null || checkOut == null || checkOut!.isBefore(checkIn!)) {
+      return Duration.zero;
+    }
+    return checkOut!.difference(checkIn!);
+  }
+
+  bool get hasTimes => checkIn != null || checkOut != null;
+
+  AttendanceRecord copyWith({
+    String? id,
+    String? status,
+    DateTime? date,
+    DateTime? checkIn,
+    DateTime? checkOut,
+    String? busId,
+    String? notes,
+  }) {
+    return AttendanceRecord(
+      id: id ?? this.id,
+      status: status ?? this.status,
+      date: date ?? this.date,
+      checkIn: checkIn ?? this.checkIn,
+      checkOut: checkOut ?? this.checkOut,
+      busId: busId ?? this.busId,
+      notes: notes ?? this.notes,
+    );
+  }
+
+  factory AttendanceRecord.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc, {
+    String? dateId,
+  }) {
     final data = doc.data() ?? {};
+    final checkIn = readDate(
+      data['signin'] ??
+          data['signIn'] ??
+          data['checkIn'] ??
+          data['clockIn'] ??
+          data['createdAt'],
+    );
+    final checkOut = readDate(
+      data['signoff'] ??
+          data['signOut'] ??
+          data['checkOut'] ??
+          data['clockOut'],
+    );
     return AttendanceRecord(
       id: doc.id,
       status: readString(data, ['status'], 'recorded'),
-      checkIn: readDate(
-        data['checkIn'] ?? data['clockIn'] ?? data['createdAt'],
-      ),
-      checkOut: readDate(data['checkOut'] ?? data['clockOut']),
+      date:
+          DateTime.tryParse(dateId ?? doc.id)?.toLocal() ??
+          checkIn ??
+          checkOut ??
+          DateTime.now(),
+      checkIn: checkIn,
+      checkOut: checkOut,
       busId: readString(data, ['busId', 'currentBusId']),
       notes: readString(data, ['notes', 'remark']),
     );
