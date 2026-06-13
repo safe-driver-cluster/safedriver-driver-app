@@ -150,31 +150,40 @@ class _BusesPageState extends State<BusesPage> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _DetailChip(
-                          icon: Icons.directions_bus_filled_rounded,
-                          label: 'Model',
-                          value: bus.model,
-                        ),
-                        _DetailChip(
-                          icon: Icons.alt_route_rounded,
-                          label: 'Route ID',
-                          value: bus.routeId,
-                        ),
-                        _DetailChip(
-                          icon: Icons.business_rounded,
-                          label: 'Depot',
-                          value: bus.locationDepot,
-                        ),
-                        _DetailChip(
-                          icon: Icons.calendar_month_rounded,
-                          label: 'Year',
-                          value: bus.year == 0 ? '' : bus.year.toString(),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final chipWidth = (constraints.maxWidth - 8) / 2;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _DetailChip(
+                              width: chipWidth,
+                              icon: Icons.directions_bus_filled_rounded,
+                              label: 'Model',
+                              value: bus.model,
+                            ),
+                            _DetailChip(
+                              width: chipWidth,
+                              icon: Icons.alt_route_rounded,
+                              label: 'Route ID',
+                              value: bus.routeId,
+                            ),
+                            _DetailChip(
+                              width: chipWidth,
+                              icon: Icons.business_rounded,
+                              label: 'Depot',
+                              value: bus.locationDepot,
+                            ),
+                            _DetailChip(
+                              width: chipWidth,
+                              icon: Icons.calendar_month_rounded,
+                              label: 'Year',
+                              value: bus.year == 0 ? '' : bus.year.toString(),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 10),
                     _DetailRow(
@@ -579,11 +588,13 @@ class _StatusPill extends StatelessWidget {
 
 class _DetailChip extends StatelessWidget {
   const _DetailChip({
+    this.width,
     required this.icon,
     required this.label,
     required this.value,
   });
 
+  final double? width;
   final IconData icon;
   final String label;
   final String value;
@@ -593,7 +604,7 @@ class _DetailChip extends StatelessWidget {
     final th = ThemeHelper.of(context);
     if (value.trim().isEmpty) return const SizedBox.shrink();
     return Container(
-      width: 154,
+      width: width,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: th.subtleBackground,
