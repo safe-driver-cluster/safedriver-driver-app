@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../models/driver_models.dart';
 
@@ -23,9 +24,38 @@ class DriverDataService {
   final FirebaseStorage _storage;
 
   Stream<List<AttendanceRecord>> attendance(String driverId) {
-    return _query('attendance', driverId).snapshots().map(
-      (snap) => snap.docs.map(AttendanceRecord.fromDoc).toList(),
+    const lookbackDays = 14;
+    final dateIds = _recentDateIds(lookbackDays);
+    final recordsByDate = <String, List<AttendanceRecord>>{};
+    final subscriptions =
+        <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+
+    late final StreamController<List<AttendanceRecord>> controller;
+    controller = StreamController<List<AttendanceRecord>>(
+      onListen: () {
+        for (final dateId in dateIds) {
+          final subscription = _firestore
+              .collection('attendance')
+              .doc(driverId)
+              .collection(dateId)
+              .snapshots()
+              .listen((snap) {
+                recordsByDate[dateId] = snap.docs
+                    .map((doc) => AttendanceRecord.fromDoc(doc, dateId: dateId))
+                    .toList();
+                controller.add(_attendanceShifts(dateIds, recordsByDate));
+              }, onError: controller.addError);
+          subscriptions.add(subscription);
+        }
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+      },
     );
+
+    return controller.stream;
   }
 
   Stream<List<DriverAlert>> alerts(DriverProfile driver) async* {
@@ -214,6 +244,38 @@ class DriverDataService {
         .collection(collection)
         .where('driverId', isEqualTo: driverId)
         .limit(50);
+  }
+
+  List<String> _recentDateIds(int days) {
+    final format = DateFormat('yyyy-MM-dd');
+    final today = DateTime.now();
+    return List.generate(days, (index) {
+      final date = DateTime(today.year, today.month, today.day - index);
+      return format.format(date);
+    });
+  }
+
+  List<AttendanceRecord> _attendanceShifts(
+    List<String> dateIds,
+    Map<String, List<AttendanceRecord>> recordsByDate,
+  ) {
+    final shifts = <AttendanceRecord>[];
+    for (final dateId in dateIds) {
+      final entries = [...recordsByDate[dateId] ?? const <AttendanceRecord>[]]
+        ..sort((a, b) {
+          final aTime = a.checkIn ?? a.checkOut ?? a.date;
+          final bTime = b.checkIn ?? b.checkOut ?? b.date;
+          return aTime.compareTo(bTime);
+        });
+
+      for (var i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        shifts.add(
+          entry.copyWith(id: '$dateId/${entry.id}', status: 'Shift ${i + 1}'),
+        );
+      }
+    }
+    return shifts.reversed.toList();
   }
 
   String _guessContentType(String path) {

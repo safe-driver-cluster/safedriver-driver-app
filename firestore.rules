@@ -80,6 +80,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /attendance/{driverId}/{date}/{recordId} {
+      allow read: if isAuthenticated() &&
+                    request.auth.token.role == 'driver' &&
+                    request.auth.token.driverId == driverId;
+      allow write: if false;
+    }
+
     match /alerts/{alertId} {
       allow read: if isAuthenticated() &&
                     isDriverAlertOwner(resource.data);
