@@ -407,29 +407,6 @@ class _DashboardCommandCard extends StatelessWidget {
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _CommandPill(
-                      icon: Icons.directions_bus_rounded,
-                      label: driver.currentBusId.isEmpty
-                          ? l10n.t('noAssignedBuses')
-                          : driver.currentBusId,
-                    ),
-                    _CommandPill(
-                      icon: Icons.star_rounded,
-                      label: '${driver.rating.toStringAsFixed(1)} rating',
-                    ),
-                    _CommandPill(
-                      icon: Icons.radio_button_checked_rounded,
-                      label: driver.isOnDuty
-                          ? l10n.t('active')
-                          : l10n.t('inactive'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -438,39 +415,6 @@ class _DashboardCommandCard extends StatelessWidget {
             Icons.route_rounded,
             color: Colors.white.withValues(alpha: 0.22),
             size: 130,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommandPill extends StatelessWidget {
-  const _CommandPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: Colors.white,
-              fontWeight: AppFontWeights.bold,
-            ),
           ),
         ],
       ),
