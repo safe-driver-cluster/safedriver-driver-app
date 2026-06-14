@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_font_weights.dart';
 import '../../../core/constants/color_constants.dart';
@@ -43,12 +43,13 @@ class _SupportPageState extends State<SupportPage> {
     super.dispose();
   }
 
-  Future<void> _copyContact(String value, String label) async {
-    await Clipboard.setData(ClipboardData(text: value));
+  Future<void> _call(String phoneNumber) async {
+    final uri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copied: $value'),
+      const SnackBar(
+        content: Text('Could not open the phone app.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -119,7 +120,7 @@ class _SupportPageState extends State<SupportPage> {
                   title: l10n.t('contactAdmin'),
                   subtitle: _adminPhone,
                   color: AppColors.primaryColor,
-                  onTap: () => _copyContact(_adminPhone, 'Admin phone'),
+                  onTap: () => _call(_adminPhone),
                 ),
               ),
               const SizedBox(width: 10),
@@ -129,7 +130,7 @@ class _SupportPageState extends State<SupportPage> {
                   title: l10n.t('emergencyHelp'),
                   subtitle: _hotline,
                   color: AppColors.dangerColor,
-                  onTap: () => _copyContact(_hotline, 'Emergency hotline'),
+                  onTap: () => _call(_hotline),
                 ),
               ),
             ],

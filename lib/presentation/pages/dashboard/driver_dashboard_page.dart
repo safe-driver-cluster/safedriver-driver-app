@@ -39,7 +39,10 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
   Future<void> _refreshDriverProfile(String driverId) async {
     if (_refreshingDriver) return;
     _refreshingDriver = true;
-    final driver = await DriverAuthService().findDriverById(driverId);
+    final driver = await DriverAuthService().findDriverById(
+      driverId,
+      forceServer: true,
+    );
     if (!mounted || driver == null) {
       _refreshingDriver = false;
       return;
@@ -90,7 +93,10 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
     }
 
     final pages = [
-      _DashboardHome(onOpen: (page) => setState(() => _index = page)),
+      _DashboardHome(
+        onOpen: (page) => setState(() => _index = page),
+        onRefresh: () => _refreshDriverProfile(driver.id),
+      ),
       const BusesPage(showAppBar: false),
       const AlertsPage(showAppBar: false),
       const ProfilePage(showAppBar: false),
@@ -150,9 +156,10 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
 }
 
 class _DashboardHome extends StatelessWidget {
-  const _DashboardHome({required this.onOpen});
+  const _DashboardHome({required this.onOpen, required this.onRefresh});
 
   final ValueChanged<int> onOpen;
+  final RefreshCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -164,50 +171,57 @@ class _DashboardHome extends StatelessWidget {
         final padding = wide
             ? const EdgeInsets.fromLTRB(32, 26, 28, 32)
             : const EdgeInsets.fromLTRB(14, 14, 14, 20);
-        return ListView(
-          padding: padding,
-          children: [
-            if (wide)
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 420,
-                      child: _DriverOverviewCard(driver: driver, l10n: l10n),
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: _DashboardCommandCard(driver: driver, l10n: l10n),
-                    ),
-                  ],
-                ),
-              )
-            else
-              _DriverOverviewCard(driver: driver, l10n: l10n),
-            const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Quick actions',
-                    style: AppTextStyles.title.copyWith(
-                      fontWeight: AppFontWeights.extraBold,
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: padding,
+            children: [
+              if (wide)
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: 420,
+                        child: _DriverOverviewCard(driver: driver, l10n: l10n),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: _DashboardCommandCard(
+                          driver: driver,
+                          l10n: l10n,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _DriverOverviewCard(driver: driver, l10n: l10n),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Quick actions',
+                      style: AppTextStyles.title.copyWith(
+                        fontWeight: AppFontWeights.extraBold,
+                      ),
                     ),
                   ),
-                ),
-                if (wide)
-                  Text(
-                    'Choose a workspace to continue',
-                    style: AppTextStyles.caption.copyWith(
-                      color: ThemeHelper.of(context).textSecondary,
+                  if (wide)
+                    Text(
+                      'Choose a workspace to continue',
+                      style: AppTextStyles.caption.copyWith(
+                        color: ThemeHelper.of(context).textSecondary,
+                      ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ActionGrid(driver: driver, l10n: l10n, onOpen: onOpen),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ActionGrid(driver: driver, l10n: l10n, onOpen: onOpen),
+            ],
+          ),
         );
       },
     );

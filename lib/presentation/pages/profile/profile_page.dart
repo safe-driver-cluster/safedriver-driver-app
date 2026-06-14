@@ -6,6 +6,7 @@ import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
+import '../../../data/services/driver_auth_service.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -34,6 +35,21 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   bool _savingLanguage = false;
+  bool _refreshing = false;
+
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    final app = AppScope.of(context);
+    final driver = app.driver!;
+    final refreshed = await DriverAuthService().findDriverById(
+      driver.id,
+      forceServer: true,
+    );
+    if (!mounted) return;
+    if (refreshed != null) app.setDriver(refreshed);
+    _refreshing = false;
+  }
 
   Future<void> _changeLanguage(_DriverLanguageOption option) async {
     if (_savingLanguage) return;
@@ -75,99 +91,103 @@ class _ProfilePageState extends State<ProfilePage> {
     final l10n = AppLocalizations.of(context);
     final th = ThemeHelper.of(context);
     final useWebLayout = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
-    final body = useWebLayout
-        ? _WebProfileView(
-            driver: driver,
-            l10n: l10n,
-            savingLanguage: _savingLanguage,
-            onLanguageChanged: _changeLanguage,
-          )
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
-            children: [
-              SoftCard(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    _Avatar(url: driver.profileImageUrl, size: 62),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            driver.fullName,
-                            style: AppTextStyles.title.copyWith(
-                              color: th.textPrimary,
+    final body = RefreshIndicator(
+      onRefresh: _refresh,
+      child: useWebLayout
+          ? _WebProfileView(
+              driver: driver,
+              l10n: l10n,
+              savingLanguage: _savingLanguage,
+              onLanguageChanged: _changeLanguage,
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
+              children: [
+                SoftCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      _Avatar(url: driver.profileImageUrl, size: 62),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              driver.fullName,
+                              style: AppTextStyles.title.copyWith(
+                                color: th.textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            driver.email.isEmpty
-                                ? driver.phoneNumber
-                                : driver.email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(
-                              color: th.textSecondary,
+                            const SizedBox(height: 3),
+                            Text(
+                              driver.email.isEmpty
+                                  ? driver.phoneNumber
+                                  : driver.email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.caption.copyWith(
+                                color: th.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          _InlineStatus(
-                            active: driver.isOnDuty,
-                            label: driver.isOnDuty
-                                ? l10n.t('active')
-                                : l10n.t('inactive'),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            _InlineStatus(
+                              active: driver.isOnDuty,
+                              label: driver.isOnDuty
+                                  ? l10n.t('active')
+                                  : l10n.t('inactive'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              _InfoRow(
-                icon: Icons.badge_rounded,
-                label: l10n.t('employeeId'),
-                value: driver.employeeId,
-              ),
-              _InfoRow(
-                icon: Icons.phone_rounded,
-                label: l10n.t('phoneNumber'),
-                value: driver.phoneNumber,
-              ),
-              _InfoRow(
-                icon: Icons.credit_card_rounded,
-                label: l10n.t('license'),
-                value: '${driver.licenseType} ${driver.licenseNumber}'.trim(),
-              ),
-              _InfoRow(
-                icon: Icons.directions_bus_rounded,
-                label: l10n.t('currentBus'),
-                value: driver.currentBusId,
-              ),
-              _InfoRow(
-                icon: Icons.alt_route_rounded,
-                label: l10n.t('routeGuidance'),
-                value: driver.currentRoute,
-              ),
-              _InfoRow(
-                icon: Icons.home_rounded,
-                label: 'Address',
-                value: driver.raw['address']?.toString() ?? '',
-              ),
-              _InfoRow(
-                icon: Icons.work_history_rounded,
-                label: 'Experience',
-                value: driver.raw['experience']?.toString() ?? '',
-              ),
-              _LanguageDropdownRow(
-                value: _DriverLanguageOption.fromFirestore(driver.language),
-                saving: _savingLanguage,
-                onChanged: _changeLanguage,
-              ),
-            ],
-          );
+                const SizedBox(height: 10),
+                _InfoRow(
+                  icon: Icons.badge_rounded,
+                  label: l10n.t('employeeId'),
+                  value: driver.employeeId,
+                ),
+                _InfoRow(
+                  icon: Icons.phone_rounded,
+                  label: l10n.t('phoneNumber'),
+                  value: driver.phoneNumber,
+                ),
+                _InfoRow(
+                  icon: Icons.credit_card_rounded,
+                  label: l10n.t('license'),
+                  value: '${driver.licenseType} ${driver.licenseNumber}'.trim(),
+                ),
+                _InfoRow(
+                  icon: Icons.directions_bus_rounded,
+                  label: l10n.t('currentBus'),
+                  value: driver.currentBusId,
+                ),
+                _InfoRow(
+                  icon: Icons.alt_route_rounded,
+                  label: l10n.t('routeGuidance'),
+                  value: driver.currentRoute,
+                ),
+                _InfoRow(
+                  icon: Icons.home_rounded,
+                  label: 'Address',
+                  value: driver.raw['address']?.toString() ?? '',
+                ),
+                _InfoRow(
+                  icon: Icons.work_history_rounded,
+                  label: 'Experience',
+                  value: driver.raw['experience']?.toString() ?? '',
+                ),
+                _LanguageDropdownRow(
+                  value: _DriverLanguageOption.fromFirestore(driver.language),
+                  saving: _savingLanguage,
+                  onChanged: _changeLanguage,
+                ),
+              ],
+            ),
+    );
     if (!widget.showAppBar) return body;
     return DriverPageShell(
       title: l10n.t('profile'),
@@ -196,6 +216,7 @@ class _WebProfileView extends StatelessWidget {
     final address = driver.raw['address']?.toString() ?? '';
     final experience = driver.raw['experience']?.toString() ?? '';
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
       children: [
         Row(

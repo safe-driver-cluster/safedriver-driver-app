@@ -8,6 +8,7 @@ import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
+import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
@@ -60,7 +61,15 @@ class _AlertsPageState extends State<AlertsPage> {
 
   Future<void> _refresh() async {
     debugPrint('[AlertsPage.refresh] restarting alert stream');
-    final driver = AppScope.of(context).driver!;
+    final app = AppScope.of(context);
+    final currentDriver = app.driver!;
+    final refreshedDriver = await DriverAuthService().findDriverById(
+      currentDriver.id,
+      forceServer: true,
+    );
+    if (!mounted) return;
+    final driver = refreshedDriver ?? currentDriver;
+    if (refreshedDriver != null) app.setDriver(refreshedDriver);
     setState(() {
       _refreshKey++;
       _setAlertStream(driver);
