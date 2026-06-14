@@ -1457,6 +1457,7 @@ List<MapEntry<String, String>> _detailRows(DriverAlert alert) {
   ];
 
   final hiddenEvidenceKeys = {
+    'path',
     'evidence',
     'evidencepath',
     'evidenceurl',
