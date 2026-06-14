@@ -6,6 +6,7 @@ import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
+import '../../../data/services/driver_auth_service.dart';
 import '../../../data/services/driver_data_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
@@ -34,6 +35,21 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   bool _savingLanguage = false;
+  bool _refreshing = false;
+
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    final app = AppScope.of(context);
+    final driver = app.driver!;
+    final refreshed = await DriverAuthService().findDriverById(
+      driver.id,
+      forceServer: true,
+    );
+    if (!mounted) return;
+    if (refreshed != null) app.setDriver(refreshed);
+    _refreshing = false;
+  }
 
   Future<void> _changeLanguage(_DriverLanguageOption option) async {
     if (_savingLanguage) return;
@@ -75,99 +91,103 @@ class _ProfilePageState extends State<ProfilePage> {
     final l10n = AppLocalizations.of(context);
     final th = ThemeHelper.of(context);
     final useWebLayout = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
-    final body = useWebLayout
-        ? _WebProfileView(
-            driver: driver,
-            l10n: l10n,
-            savingLanguage: _savingLanguage,
-            onLanguageChanged: _changeLanguage,
-          )
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
-            children: [
-              SoftCard(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    _Avatar(url: driver.profileImageUrl, size: 62),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            driver.fullName,
-                            style: AppTextStyles.title.copyWith(
-                              color: th.textPrimary,
+    final body = RefreshIndicator(
+      onRefresh: _refresh,
+      child: useWebLayout
+          ? _WebProfileView(
+              driver: driver,
+              l10n: l10n,
+              savingLanguage: _savingLanguage,
+              onLanguageChanged: _changeLanguage,
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 20),
+              children: [
+                SoftCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      _Avatar(url: driver.profileImageUrl, size: 62),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              driver.fullName,
+                              style: AppTextStyles.title.copyWith(
+                                color: th.textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            driver.email.isEmpty
-                                ? driver.phoneNumber
-                                : driver.email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(
-                              color: th.textSecondary,
+                            const SizedBox(height: 3),
+                            Text(
+                              driver.email.isEmpty
+                                  ? driver.phoneNumber
+                                  : driver.email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.caption.copyWith(
+                                color: th.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          _InlineStatus(
-                            active: driver.isOnDuty,
-                            label: driver.isOnDuty
-                                ? l10n.t('active')
-                                : l10n.t('inactive'),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            _InlineStatus(
+                              active: driver.isOnDuty,
+                              label: driver.isOnDuty
+                                  ? l10n.t('active')
+                                  : l10n.t('inactive'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              _InfoRow(
-                icon: Icons.badge_rounded,
-                label: l10n.t('employeeId'),
-                value: driver.employeeId,
-              ),
-              _InfoRow(
-                icon: Icons.phone_rounded,
-                label: l10n.t('phoneNumber'),
-                value: driver.phoneNumber,
-              ),
-              _InfoRow(
-                icon: Icons.credit_card_rounded,
-                label: l10n.t('license'),
-                value: '${driver.licenseType} ${driver.licenseNumber}'.trim(),
-              ),
-              _InfoRow(
-                icon: Icons.directions_bus_rounded,
-                label: l10n.t('currentBus'),
-                value: driver.currentBusId,
-              ),
-              _InfoRow(
-                icon: Icons.alt_route_rounded,
-                label: l10n.t('routeGuidance'),
-                value: driver.currentRoute,
-              ),
-              _InfoRow(
-                icon: Icons.home_rounded,
-                label: 'Address',
-                value: driver.raw['address']?.toString() ?? '',
-              ),
-              _InfoRow(
-                icon: Icons.work_history_rounded,
-                label: 'Experience',
-                value: driver.raw['experience']?.toString() ?? '',
-              ),
-              _LanguageDropdownRow(
-                value: _DriverLanguageOption.fromFirestore(driver.language),
-                saving: _savingLanguage,
-                onChanged: _changeLanguage,
-              ),
-            ],
-          );
+                const SizedBox(height: 10),
+                _InfoRow(
+                  icon: Icons.badge_rounded,
+                  label: l10n.t('employeeId'),
+                  value: driver.employeeId,
+                ),
+                _InfoRow(
+                  icon: Icons.phone_rounded,
+                  label: l10n.t('phoneNumber'),
+                  value: driver.phoneNumber,
+                ),
+                _InfoRow(
+                  icon: Icons.credit_card_rounded,
+                  label: l10n.t('license'),
+                  value: '${driver.licenseType} ${driver.licenseNumber}'.trim(),
+                ),
+                _InfoRow(
+                  icon: Icons.directions_bus_rounded,
+                  label: l10n.t('currentBus'),
+                  value: driver.currentBusId,
+                ),
+                _InfoRow(
+                  icon: Icons.alt_route_rounded,
+                  label: l10n.t('routeGuidance'),
+                  value: driver.currentRoute,
+                ),
+                _InfoRow(
+                  icon: Icons.home_rounded,
+                  label: 'Address',
+                  value: driver.raw['address']?.toString() ?? '',
+                ),
+                _InfoRow(
+                  icon: Icons.work_history_rounded,
+                  label: 'Experience',
+                  value: driver.raw['experience']?.toString() ?? '',
+                ),
+                _LanguageDropdownRow(
+                  value: _DriverLanguageOption.fromFirestore(driver.language),
+                  saving: _savingLanguage,
+                  onChanged: _changeLanguage,
+                ),
+              ],
+            ),
+    );
     if (!widget.showAppBar) return body;
     return DriverPageShell(
       title: l10n.t('profile'),
@@ -194,107 +214,58 @@ class _WebProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
     final address = driver.raw['address']?.toString() ?? '';
-    final experience = driver.raw['experience']?.toString() ?? '';
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 4,
-              child: Container(
-                height: 196,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: th.cardBackground,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: th.borderColor),
-                  boxShadow: th.isDark ? null : AppDesign.shadowSM,
-                ),
-                child: Row(
+        Container(
+          height: 196,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: th.cardBackground,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: th.borderColor),
+            boxShadow: th.isDark ? null : AppDesign.shadowSM,
+          ),
+          child: Row(
+            children: [
+              _Avatar(url: driver.profileImageUrl, size: 86),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Avatar(url: driver.profileImageUrl, size: 86),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            driver.fullName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.headline3.copyWith(
-                              color: th.textPrimary,
-                              fontWeight: AppFontWeights.extraBold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            driver.email.isEmpty
-                                ? driver.phoneNumber
-                                : driver.email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: th.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _InlineStatus(
-                            active: driver.isOnDuty,
-                            label: driver.isOnDuty
-                                ? l10n.t('active')
-                                : l10n.t('inactive'),
-                          ),
-                        ],
+                    Text(
+                      driver.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.headline3.copyWith(
+                        color: th.textPrimary,
+                        fontWeight: AppFontWeights.extraBold,
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      driver.email.isEmpty ? driver.phoneNumber : driver.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: th.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _InlineStatus(
+                      active: driver.isOnDuty,
+                      label: driver.isOnDuty
+                          ? l10n.t('active')
+                          : l10n.t('inactive'),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              flex: 5,
-              child: SizedBox(
-                height: 196,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _WebProfileMetric(
-                        label: 'Rating',
-                        value: driver.rating.toStringAsFixed(1),
-                        icon: Icons.star_rounded,
-                        color: AppColors.warningColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _WebProfileMetric(
-                        label: 'Safety score',
-                        value: driver.safetyScore <= 0
-                            ? '-'
-                            : driver.safetyScore.toStringAsFixed(0),
-                        icon: Icons.shield_rounded,
-                        color: AppColors.secondaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _WebProfileMetric(
-                        label: 'Experience',
-                        value: experience.isEmpty ? '-' : experience,
-                        icon: Icons.work_history_rounded,
-                        color: AppColors.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Row(
@@ -354,65 +325,6 @@ class _WebProfileView extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _WebProfileMetric extends StatelessWidget {
-  const _WebProfileMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final th = ThemeHelper.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: th.cardBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: th.borderColor),
-        boxShadow: th.isDark ? null : AppDesign.shadowSM,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const Spacer(),
-          Text(
-            value.isEmpty ? '-' : value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.headline3.copyWith(
-              color: th.textPrimary,
-              fontWeight: AppFontWeights.extraBold,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -662,61 +574,94 @@ class _WebLanguageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: th.inputFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: th.borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 34,
-            width: 34,
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.language_rounded,
-              size: 18,
-              color: AppColors.primaryColor,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final labelWidth = (constraints.maxWidth * 0.48)
+            .clamp(160.0, 340.0)
+            .toDouble();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: th.inputFill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: th.borderColor),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Alert Language',
-              style: AppTextStyles.caption.copyWith(color: th.textSecondary),
-            ),
+          child: Row(
+            children: [
+              Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.language_rounded,
+                  size: 18,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: labelWidth,
+                child: Text(
+                  'Alert Language',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: th.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (saving)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Expanded(
+                  child: DropdownButton<_DriverLanguageOption>(
+                    value: value,
+                    isExpanded: true,
+                    alignment: AlignmentDirectional.centerStart,
+                    underline: const SizedBox.shrink(),
+                    selectedItemBuilder: (context) => _DriverLanguageOption
+                        .values
+                        .map(
+                          (option) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              option.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.start,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: th.textPrimary,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    items: _DriverLanguageOption.values
+                        .map(
+                          (option) => DropdownMenuItem(
+                            value: option,
+                            child: Text(option.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (option) {
+                      if (option != null) onChanged(option);
+                    },
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 12),
-          if (saving)
-            const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            DropdownButton<_DriverLanguageOption>(
-              value: value,
-              underline: const SizedBox.shrink(),
-              items: _DriverLanguageOption.values
-                  .map(
-                    (option) => DropdownMenuItem(
-                      value: option,
-                      child: Text(option.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (option) {
-                if (option != null) onChanged(option);
-              },
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

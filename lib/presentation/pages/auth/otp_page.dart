@@ -221,90 +221,54 @@ class _OtpPageState extends State<OtpPage> {
           body: Container(
             width: double.infinity,
             height: double.infinity,
-            color: th.cardBackground,
+            decoration: BoxDecoration(
+              color: th.subtleBackground,
+              gradient: th.isDark
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.primaryColor.withValues(alpha: 0.06),
+                        th.subtleBackground,
+                        th.subtleBackground,
+                      ],
+                    ),
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 760;
                 return SingleChildScrollView(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: constraints.maxHeight,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppDesign.spaceXL,
-                        AppDesign.space2XL,
-                        AppDesign.spaceXL,
-                        AppDesign.spaceXL,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isWide
+                            ? AppDesign.space2XL
+                            : AppDesign.spaceLG,
+                        vertical: isWide ? 46 : AppDesign.spaceXL,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            child: Container(
-                              height: 84,
-                              width: 84,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withValues(
-                                  alpha: 0.12,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.verified_user_rounded,
-                                size: 46,
-                                color: th.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppDesign.spaceXL),
-                          Text(
-                            l10n.t('otpSubtitle'),
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: th.textSecondary,
-                              height: 1.35,
-                            ),
-                          ),
-                          const SizedBox(height: AppDesign.spaceSM),
-                          Text(
-                            _result.phoneNumber,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: th.textPrimary,
-                              fontWeight: AppFontWeights.extraBold,
-                            ),
-                          ),
-                          const SizedBox(height: AppDesign.space2XL),
-                          _OtpBoxes(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: _OtpVerificationCard(
+                            th: th,
+                            l10n: l10n,
+                            phoneNumber: _result.phoneNumber,
+                            errorMessage: _errorMessage,
+                            seconds: _seconds,
+                            isLoading: _viewModel.isLoading,
+                            isVerifying: _isVerifying,
                             controllers: _otpControllers,
                             focusNodes: _otpFocusNodes,
                             onChanged: _handleOtpChanged,
                             onKeyEvent: _handleOtpKey,
+                            onVerify: _verify,
+                            onResend: _resend,
                           ),
-                          if (_errorMessage != null) ...[
-                            const SizedBox(height: AppDesign.spaceLG),
-                            AuthErrorMessage(message: _errorMessage!),
-                          ],
-                          const SizedBox(height: AppDesign.space2XL),
-                          GradientButton(
-                            label: l10n.t('verifyLogin'),
-                            icon: Icons.login_rounded,
-                            isLoading: _viewModel.isLoading || _isVerifying,
-                            onPressed: _isVerifying ? null : _verify,
-                          ),
-                          const SizedBox(height: AppDesign.spaceLG),
-                          TextButton.icon(
-                            onPressed: _seconds == 0 && !_viewModel.isLoading
-                                ? _resend
-                                : null,
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: Text(
-                              _seconds == 0
-                                  ? l10n.t('resendOtp')
-                                  : '${l10n.t('resendIn')} $_seconds s',
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -314,6 +278,181 @@ class _OtpPageState extends State<OtpPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _OtpVerificationCard extends StatelessWidget {
+  const _OtpVerificationCard({
+    required this.th,
+    required this.l10n,
+    required this.phoneNumber,
+    required this.errorMessage,
+    required this.seconds,
+    required this.isLoading,
+    required this.isVerifying,
+    required this.controllers,
+    required this.focusNodes,
+    required this.onChanged,
+    required this.onKeyEvent,
+    required this.onVerify,
+    required this.onResend,
+  });
+
+  final ThemeHelper th;
+  final AppLocalizations l10n;
+  final String phoneNumber;
+  final String? errorMessage;
+  final int seconds;
+  final bool isLoading;
+  final bool isVerifying;
+  final List<TextEditingController> controllers;
+  final List<FocusNode> focusNodes;
+  final void Function(String value, int index) onChanged;
+  final KeyEventResult Function(FocusNode node, KeyEvent event, int index)
+  onKeyEvent;
+  final VoidCallback onVerify;
+  final VoidCallback onResend;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 760;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isWide ? AppDesign.space2XL : AppDesign.spaceXL),
+      decoration: BoxDecoration(
+        color: th.cardBackground,
+        borderRadius: BorderRadius.circular(isWide ? 30 : 24),
+        border: Border.all(color: th.borderColor),
+        boxShadow: th.isDark ? null : AppDesign.shadowLG,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _OtpHero(th: th),
+          const SizedBox(height: AppDesign.spaceXL),
+          Text(
+            l10n.t('otpSubtitle'),
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: th.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppDesign.spaceSM),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDesign.spaceLG,
+              vertical: AppDesign.spaceMD,
+            ),
+            decoration: BoxDecoration(
+              color: th.tintBackground,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              phoneNumber,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: th.textPrimary,
+                fontWeight: AppFontWeights.extraBold,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppDesign.space2XL),
+          _OtpBoxes(
+            controllers: controllers,
+            focusNodes: focusNodes,
+            onChanged: onChanged,
+            onKeyEvent: onKeyEvent,
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: AppDesign.spaceLG),
+            AuthErrorMessage(message: errorMessage!),
+          ],
+          const SizedBox(height: AppDesign.space2XL),
+          GradientButton(
+            label: l10n.t('verifyLogin'),
+            icon: Icons.login_rounded,
+            isLoading: isLoading || isVerifying,
+            onPressed: isVerifying ? null : onVerify,
+          ),
+          const SizedBox(height: AppDesign.spaceLG),
+          Center(
+            child: TextButton.icon(
+              onPressed: seconds == 0 && !isLoading ? onResend : null,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(
+                seconds == 0
+                    ? l10n.t('resendOtp')
+                    : '${l10n.t('resendIn')} $seconds s',
+              ),
+            ),
+          ),
+          const SizedBox(height: AppDesign.spaceSM),
+          _OtpSecurityNote(th: th),
+        ],
+      ),
+    );
+  }
+}
+
+class _OtpHero extends StatelessWidget {
+  const _OtpHero({required this.th});
+
+  final ThemeHelper th;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      child: Container(
+        height: 92,
+        width: 92,
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              height: 66,
+              width: 66,
+              decoration: BoxDecoration(
+                color: th.cardBackground,
+                shape: BoxShape.circle,
+                boxShadow: th.isDark ? null : AppDesign.shadowSM,
+              ),
+            ),
+            Icon(Icons.verified_user_rounded, size: 42, color: th.primary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OtpSecurityNote extends StatelessWidget {
+  const _OtpSecurityNote({required this.th});
+
+  final ThemeHelper th;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.lock_rounded, size: 16, color: th.textSecondary),
+        const SizedBox(width: AppDesign.spaceSM),
+        Flexible(
+          child: Text(
+            'This code keeps your driver account secure.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption.copyWith(color: th.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -335,49 +474,62 @@ class _OtpBoxes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final th = ThemeHelper.of(context);
-    return Row(
-      children: List.generate(controllers.length, (index) {
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: index == controllers.length - 1 ? 0 : 8,
-            ),
-            child: Focus(
-              onKeyEvent: (node, event) => onKeyEvent(node, event, index),
-              child: TextField(
-                controller: controllers[index],
-                focusNode: focusNodes[index],
-                keyboardType: TextInputType.number,
-                textInputAction: index == controllers.length - 1
-                    ? TextInputAction.done
-                    : TextInputAction.next,
-                textAlign: TextAlign.center,
-                maxLength: 1,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: AppTextStyles.headline3.copyWith(
-                  color: th.textPrimary,
-                  fontWeight: AppFontWeights.extraBold,
-                ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  filled: true,
-                  fillColor: th.inputFill,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDesign.radiusMD),
-                    borderSide: BorderSide(color: th.borderColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDesign.radiusMD),
-                    borderSide: BorderSide(color: th.primary, width: 1.6),
-                  ),
-                ),
-                onChanged: (value) => onChanged(value, index),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 520.0;
+        final boxSize = ((available - 50) / controllers.length)
+            .clamp(46.0, 64.0)
+            .toDouble();
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(controllers.length, (index) {
+            return Padding(
+              padding: EdgeInsets.only(
+                right: index == controllers.length - 1 ? 0 : 10,
               ),
-            ),
-          ),
+              child: SizedBox(
+                width: boxSize,
+                child: Focus(
+                  onKeyEvent: (node, event) => onKeyEvent(node, event, index),
+                  child: TextField(
+                    controller: controllers[index],
+                    focusNode: focusNodes[index],
+                    keyboardType: TextInputType.number,
+                    textInputAction: index == controllers.length - 1
+                        ? TextInputAction.done
+                        : TextInputAction.next,
+                    textAlign: TextAlign.center,
+                    maxLength: 1,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: AppTextStyles.headline3.copyWith(
+                      fontSize: 24,
+                      color: th.textPrimary,
+                      fontWeight: AppFontWeights.extraBold,
+                    ),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      filled: true,
+                      fillColor: th.inputFill,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppDesign.radiusLG),
+                        borderSide: BorderSide(color: th.borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppDesign.radiusLG),
+                        borderSide: BorderSide(color: th.primary, width: 1.6),
+                      ),
+                    ),
+                    onChanged: (value) => onChanged(value, index),
+                  ),
+                ),
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 }

@@ -31,7 +31,10 @@ class _SettingsPageState extends State<SettingsPage> {
     if (driver == null || _refreshing) return;
 
     setState(() => _refreshing = true);
-    final refreshed = await DriverAuthService().findDriverById(driver.id);
+    final refreshed = await DriverAuthService().findDriverById(
+      driver.id,
+      forceServer: true,
+    );
     if (!mounted) return;
     setState(() => _refreshing = false);
 

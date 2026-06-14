@@ -268,14 +268,16 @@ class DriverDataService {
           return aTime.compareTo(bTime);
         });
 
+      final dayShifts = <AttendanceRecord>[];
       for (var i = 0; i < entries.length; i++) {
         final entry = entries[i];
-        shifts.add(
+        dayShifts.add(
           entry.copyWith(id: '$dateId/${entry.id}', status: 'Shift ${i + 1}'),
         );
       }
+      shifts.addAll(dayShifts.reversed);
     }
-    return shifts.reversed.toList();
+    return shifts;
   }
 
   String _guessContentType(String path) {

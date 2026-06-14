@@ -92,10 +92,16 @@ class DriverAuthService {
     return null;
   }
 
-  Future<DriverProfile?> findDriverById(String id) async {
+  Future<DriverProfile?> findDriverById(
+    String id, {
+    bool forceServer = false,
+  }) async {
     try {
       debugPrint('[DriverAuthService.findDriverById] id: $id');
-      final doc = await _firestore.collection('drivers').doc(id).get();
+      final ref = _firestore.collection('drivers').doc(id);
+      final doc = forceServer
+          ? await ref.get(const GetOptions(source: Source.server))
+          : await ref.get();
       debugPrint('[DriverAuthService.findDriverById] exists: ${doc.exists}');
       if (!doc.exists) return null;
       final driver = DriverProfile.fromDoc(doc);

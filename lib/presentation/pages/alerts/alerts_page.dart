@@ -8,6 +8,7 @@ import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/design_constants.dart';
 import '../../../core/utils/theme_helper.dart';
 import '../../../data/models/driver_models.dart';
+import '../../../data/services/driver_auth_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../state/app_controller.dart';
 import '../../viewmodels/driver_dashboard_view_model.dart';
@@ -60,7 +61,15 @@ class _AlertsPageState extends State<AlertsPage> {
 
   Future<void> _refresh() async {
     debugPrint('[AlertsPage.refresh] restarting alert stream');
-    final driver = AppScope.of(context).driver!;
+    final app = AppScope.of(context);
+    final currentDriver = app.driver!;
+    final refreshedDriver = await DriverAuthService().findDriverById(
+      currentDriver.id,
+      forceServer: true,
+    );
+    if (!mounted) return;
+    final driver = refreshedDriver ?? currentDriver;
+    if (refreshedDriver != null) app.setDriver(refreshedDriver);
     setState(() {
       _refreshKey++;
       _setAlertStream(driver);
@@ -433,7 +442,7 @@ class _WebAlertsView extends StatelessWidget {
                       crossAxisCount: columns,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: columns == 3 ? 2.72 : 2.58,
+                      childAspectRatio: columns == 3 ? 2.16 : 2.05,
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) =>
@@ -714,8 +723,8 @@ class _WebAlertCard extends StatelessWidget {
                     children: [
                       Text(
                         alert.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 3,
+                        overflow: TextOverflow.clip,
                         style: AppTextStyles.bodyLarge.copyWith(
                           color: th.textPrimary,
                           fontWeight: AppFontWeights.extraBold,
@@ -1087,8 +1096,8 @@ class _AlertCard extends StatelessWidget {
                     children: [
                       Text(
                         alert.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 3,
+                        overflow: TextOverflow.clip,
                         style: AppTextStyles.title.copyWith(
                           fontWeight: AppFontWeights.extraBold,
                         ),
@@ -1457,6 +1466,7 @@ List<MapEntry<String, String>> _detailRows(DriverAlert alert) {
   ];
 
   final hiddenEvidenceKeys = {
+    'path',
     'evidence',
     'evidencepath',
     'evidenceurl',

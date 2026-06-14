@@ -111,13 +111,13 @@ class _LoginPageState extends State<LoginPage> {
                   final wide = constraints.maxWidth >= 860;
                   if (wide) {
                     return Padding(
-                      padding: const EdgeInsets.all(34),
+                      padding: const EdgeInsets.all(38),
                       child: Row(
                         children: [
                           Expanded(child: _LoginBrandPanel(l10n: l10n)),
-                          const SizedBox(width: 34),
+                          const SizedBox(width: 36),
                           SizedBox(
-                            width: 480,
+                            width: 500,
                             child: _LoginFormPanel(
                               th: th,
                               l10n: l10n,
@@ -191,14 +191,29 @@ class _LoginBrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = compact ? 112.0 : 96.0;
     return Container(
-      padding: EdgeInsets.all(compact ? 0 : 36),
+      padding: EdgeInsets.all(compact ? 0 : 42),
       decoration: compact
           ? null
           : BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(34),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.20),
+                  Colors.white.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(36),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.20),
+                  blurRadius: 34,
+                  offset: const Offset(0, 18),
+                ),
+              ],
             ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -207,16 +222,16 @@ class _LoginBrandPanel extends StatelessWidget {
             : CrossAxisAlignment.start,
         children: [
           Container(
-            width: compact ? 112 : 132,
-            height: compact ? 112 : 132,
-            padding: const EdgeInsets.all(8),
+            width: logoSize,
+            height: logoSize,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(compact ? 30 : 28),
               boxShadow: AppDesign.shadowLG,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(compact ? 24 : 22),
               child: Image.asset('assets/images/logo.png'),
             ),
           ),
@@ -233,7 +248,7 @@ class _LoginBrandPanel extends StatelessWidget {
           ),
           const SizedBox(height: AppDesign.spaceSM),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 520),
             child: Text(
               l10n.t('loginSubtitle'),
               textAlign: compact ? TextAlign.center : TextAlign.start,
@@ -242,6 +257,63 @@ class _LoginBrandPanel extends StatelessWidget {
                 height: 1.45,
                 color: Colors.white.withValues(alpha: 0.86),
               ),
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 34),
+            const _LoginTrustStrip(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LoginTrustStrip extends StatelessWidget {
+  const _LoginTrustStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: const [
+        _LoginTrustPill(
+          icon: Icons.verified_user_rounded,
+          label: 'Admin verified',
+        ),
+        _LoginTrustPill(icon: Icons.lock_rounded, label: 'Secure OTP login'),
+        _LoginTrustPill(icon: Icons.dashboard_rounded, label: 'Driver console'),
+      ],
+    );
+  }
+}
+
+class _LoginTrustPill extends StatelessWidget {
+  const _LoginTrustPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.white,
+              fontWeight: AppFontWeights.bold,
             ),
           ),
         ],
@@ -279,12 +351,54 @@ class _LoginFormPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleRow = mobile
+        ? null
+        : Row(
+            children: [
+              Container(
+                height: 52,
+                width: 52,
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset('assets/images/logo.png'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sign in to dashboard',
+                      style: AppTextStyles.headline3.copyWith(
+                        color: th.textPrimary,
+                        fontWeight: AppFontWeights.extraBold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'SafeDriver Driver App',
+                      style: AppTextStyles.caption.copyWith(
+                        color: th.textSecondary,
+                        fontWeight: AppFontWeights.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppDesign.spaceXL),
+      padding: EdgeInsets.all(mobile ? AppDesign.spaceXL : 28),
       decoration: BoxDecoration(
         color: th.cardBackground,
-        borderRadius: BorderRadius.circular(mobile ? 32 : 30),
+        borderRadius: BorderRadius.circular(mobile ? 32 : 28),
         boxShadow: mobile ? null : AppDesign.shadowLG,
       ),
       child: SingleChildScrollView(
@@ -293,13 +407,16 @@ class _LoginFormPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Sign in to dashboard',
-                style: AppTextStyles.headline3.copyWith(
-                  color: th.textPrimary,
-                  fontWeight: AppFontWeights.extraBold,
+              if (titleRow != null)
+                titleRow
+              else
+                Text(
+                  'Sign in to dashboard',
+                  style: AppTextStyles.headline3.copyWith(
+                    color: th.textPrimary,
+                    fontWeight: AppFontWeights.extraBold,
+                  ),
                 ),
-              ),
               const SizedBox(height: 8),
               Text(
                 'Enter your registered driver phone number to continue.',

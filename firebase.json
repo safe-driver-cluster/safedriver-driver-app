@@ -18,6 +18,7 @@
         "indexes": "firestore.indexes.json"
     },
     "hosting": {
+        "target": "driver",
         "public": "build/web",
         "ignore": [
             "firebase.json",
