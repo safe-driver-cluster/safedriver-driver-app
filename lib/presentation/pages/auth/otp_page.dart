@@ -26,7 +26,7 @@ class OtpPage extends StatefulWidget {
 
 class _OtpPageState extends State<OtpPage> {
   static const _testOtpPhoneNumber = '+94761155638';
-  static const _testOtpCode = '11111';
+  static const _testOtpCode = '111111';
 
   final _otpControllers = List.generate(6, (_) => TextEditingController());
   final _otpFocusNodes = List.generate(6, (_) => FocusNode());

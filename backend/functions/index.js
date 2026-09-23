@@ -59,7 +59,7 @@ const verificationRateLimiter = new RateLimiterMemory({
 
 const driverTestOtp = {
     phoneNumber: '+94761155638',
-    otp: '11111',
+    otp: '111111',
 };
 
 // Utility functions
