@@ -57,6 +57,11 @@ const verificationRateLimiter = new RateLimiterMemory({
     duration: config.rateLimits.verificationDuration,
 });
 
+const driverTestOtp = {
+    phoneNumber: '+94761155638',
+    otp: '11111',
+};
+
 // Utility functions
 function generateOTP() {
     const otpLength = config.otp.length;
@@ -95,6 +100,10 @@ function validateSriLankanPhoneNumber(phoneNumber) {
     const formatted = formatPhoneNumber(phoneNumber);
     const regex = /^\+94[1-9]\d{8}$/;
     return regex.test(formatted);
+}
+
+function isDriverTestOtp(phoneNumber, otp) {
+    return phoneNumber === driverTestOtp.phoneNumber && otp === driverTestOtp.otp;
 }
 
 function phoneVariants(phoneNumber) {
@@ -702,7 +711,8 @@ exports.driverVerifyOTP = functions
             }
 
             const hashedInputOTP = hashOTP(otp);
-            if (hashedInputOTP !== verificationData.hashedOTP) {
+            const testOtpMatched = isDriverTestOtp(formattedPhone, otp);
+            if (!testOtpMatched && hashedInputOTP !== verificationData.hashedOTP) {
                 await verificationDoc.ref.update({
                     attempts: admin.firestore.FieldValue.increment(1),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
