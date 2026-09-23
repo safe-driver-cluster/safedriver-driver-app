@@ -25,6 +25,9 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
+  static const _testOtpPhoneNumber = '+94761155638';
+  static const _testOtpCode = '11111';
+
   final _otpControllers = List.generate(6, (_) => TextEditingController());
   final _otpFocusNodes = List.generate(6, (_) => FocusNode());
   final _viewModel = AuthViewModel();
@@ -83,7 +86,7 @@ class _OtpPageState extends State<OtpPage> {
     );
     debugPrint('[DriverOtpPage._verify] phone=${_result.phoneNumber}');
     debugPrint('[DriverOtpPage._verify] otp length=${code.length}');
-    if (code.length < 6) {
+    if (!_isCompleteOtp(code)) {
       debugPrint('[DriverOtpPage._verify] OTP validation failed');
       final message = l10n.t('otpRequired');
       setState(() => _errorMessage = message);
@@ -163,6 +166,11 @@ class _OtpPageState extends State<OtpPage> {
 
   String get _otpCode => _otpControllers.map((item) => item.text).join();
 
+  bool _isCompleteOtp(String code) {
+    return code.length == 6 ||
+        (_result.phoneNumber == _testOtpPhoneNumber && code == _testOtpCode);
+  }
+
   void _clearOtp() {
     for (final controller in _otpControllers) {
       controller.clear();
@@ -181,7 +189,7 @@ class _OtpPageState extends State<OtpPage> {
     if (value.isNotEmpty && index < _otpFocusNodes.length - 1) {
       _otpFocusNodes[index + 1].requestFocus();
     }
-    if (_otpCode.length == 6) {
+    if (_isCompleteOtp(_otpCode)) {
       _otpFocusNodes[index].unfocus();
     }
   }
@@ -193,7 +201,7 @@ class _OtpPageState extends State<OtpPage> {
     }
     final nextIndex = digits.length >= 6 ? 5 : digits.length;
     _otpFocusNodes[nextIndex.clamp(0, 5)].requestFocus();
-    if (digits.length >= 6) _otpFocusNodes.last.unfocus();
+    if (_isCompleteOtp(_otpCode)) _otpFocusNodes.last.unfocus();
   }
 
   KeyEventResult _handleOtpKey(FocusNode node, KeyEvent event, int index) {
