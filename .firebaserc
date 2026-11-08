@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "staging": "safe-driver-system"
+  },
+  "targets": {
+    "safe-driver-system": {
+      "hosting": {
+        "driver": [
+          "safe-driver-driver-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

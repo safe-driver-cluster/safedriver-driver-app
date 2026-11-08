@@ -13,10 +13,12 @@ class AuthViewModel extends ChangeNotifier {
   String? errorCode;
 
   Future<OtpStartResult?> startOtpLogin(String phoneNumber) async {
+    debugPrint('[AuthViewModel.startOtpLogin] phoneNumber: $phoneNumber');
     return _guard(() => _authService.startOtpLogin(phoneNumber), 'otp_failed');
   }
 
   Future<OtpStartResult?> resendOtp(String phoneNumber) async {
+    debugPrint('[AuthViewModel.resendOtp] phoneNumber: $phoneNumber');
     return _guard(() => _authService.resendOtp(phoneNumber), 'otp_failed');
   }
 
@@ -25,6 +27,9 @@ class AuthViewModel extends ChangeNotifier {
     required String smsCode,
     required String phoneNumber,
   }) async {
+    debugPrint('[AuthViewModel.verifyOtp] verificationId: $verificationId');
+    debugPrint('[AuthViewModel.verifyOtp] phoneNumber: $phoneNumber');
+    debugPrint('[AuthViewModel.verifyOtp] smsCode length: ${smsCode.length}');
     return _guard(
       () => _authService.verifyOtp(
         verificationId: verificationId,
@@ -36,19 +41,30 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<T?> _guard<T>(Future<T> Function() action, String fallback) async {
+    debugPrint('[AuthViewModel._guard] start fallback=$fallback');
     isLoading = true;
     errorCode = null;
     notifyListeners();
     try {
-      return await action();
+      final result = await action();
+      debugPrint(
+        '[AuthViewModel._guard] success resultType=${result.runtimeType}',
+      );
+      return result;
     } on DriverAuthException catch (error) {
+      debugPrint(
+        '[AuthViewModel._guard] DriverAuthException code=${error.code}',
+      );
       errorCode = error.code;
       return null;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('[AuthViewModel._guard] unexpected error: $error');
+      debugPrint('[AuthViewModel._guard] stackTrace: $stackTrace');
       errorCode = fallback;
       return null;
     } finally {
       isLoading = false;
+      debugPrint('[AuthViewModel._guard] finish errorCode=$errorCode');
       notifyListeners();
     }
   }
