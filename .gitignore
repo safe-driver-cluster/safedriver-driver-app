@@ -46,4 +46,3 @@ app.*.map.json
 config.bat
 node_modules
 
-.env
