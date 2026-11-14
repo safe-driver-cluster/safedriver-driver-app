@@ -416,4 +416,7 @@ No standalone license file is included. The backend README identifies this as pa
 <div align="center">
   <img src="assets/images/logo.png" alt="SafeDriver" width="64" />
   <p><strong>🚌 SafeDriver — connected information for every shift.</strong></p>
+
+  <p><strong>🚌 2026.11.14</strong></p>
 </div>
+
